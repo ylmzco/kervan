@@ -17,11 +17,13 @@ export const CONFIG = {
     { from: 0.8, k: 2.25 },
     { from: 1.0001, k: 4 },
   ],
-  // Malı sistem toptancısına geri satış: çıkış yoludur, kâr yolu değil.
-  // Birim fiyat = sistem fiyatı x (taban + kalite payı), ama hiçbir zaman maliyetin sellBackMaxCost katını geçmez.
-  sellBackBase: 0.35,
-  sellBackQual: 0.35,
-  sellBackMaxCost: 0.9,
+  // Maliyetine hemen satış: mal anında maliyetine nakde döner.
+  // true ise piyasa alış anına göre düştüyse düşüş oranında eksik ödenir (fiyat riski oyuncuda kalır).
+  sellBackMarketRisk: true,
+  // Pazarda ilan: alıcı hızı = ürünün taban hızı x offerRateK; fiyat piyasa değerinin %10 üstündeyse kimse almaz, %10 altındaysa iki kat hızlı gider.
+  offerRateK: 3,
+  offerPriceSens: 10,
+  offerFee: 0.05, // pazar komisyonu
   // Günlük kâr üzerinden dilimli vergi (her dilim yalnızca kendi aralığına uygulanır).
   taxBrackets: [
     { upTo: 1000, rate: 0 },
@@ -35,9 +37,9 @@ export const CONFIG = {
     kotu: { ad: "Kötü piyasa", m: 0.8 },
   },
   sizes: [
-    { ad: "Küçük", shelves: 1, depot: 1200, rent: 60, costK: 0 },
-    { ad: "Orta", shelves: 3, depot: 3000, rent: 300, costK: 0.6 },
-    { ad: "Büyük", shelves: 6, depot: 6000, rent: 700, costK: 3 },
+    { ad: "Küçük", shelves: 1, depot: 1200, rent: 60, costK: 0, offers: 1 },
+    { ad: "Orta", shelves: 3, depot: 3000, rent: 300, costK: 0.6, offers: 2 },
+    { ad: "Büyük", shelves: 6, depot: 6000, rent: 700, costK: 3, offers: 3 },
   ],
 };
 export type MarketState = keyof typeof CONFIG.states;

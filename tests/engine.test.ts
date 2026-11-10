@@ -68,17 +68,51 @@ describe("banka", () => {
   });
 });
 
-describe("geri satış", () => {
-  it("her zaman maliyetin altındadır ve stoğu nakde çevirir", () => {
-    for (const q of [20, 50, 85]) {
-      k.setSeed(q); k.newGame();
-      const l = k.allListings("makarna").find((x) => !x.sys)!;
-      k.buy(l, 100);
-      const sh = k.S.shops[0], cost = sh.stock.makarna.cost, before = k.S.cash;
-      expect(k.sellBackPrice(sh, "makarna")).toBeLessThan(cost);
-      const r = k.sellBack(sh, "makarna", 40);
-      expect(sh.stock.makarna.q).toBe(60); expect(k.S.cash).toBeCloseTo(before + r); expect(r).toBeLessThan(40 * cost);
-    }
+describe("maliyetine hemen satış", () => {
+  const setup = () => { const l = k.allListings("makarna").find((x) => !x.sys)!; k.buy(l, 100); return k.S.shops[0]; };
+  it("piyasa değişmediyse tam maliyetine satar", () => {
+    const sh = setup(), cost = sh.stock.makarna.cost, before = k.S.cash;
+    const r = k.sellBack(sh, "makarna", 40);
+    expect(r).toBeCloseTo(40 * cost, 0); expect(sh.stock.makarna.q).toBe(60); expect(k.S.cash).toBeCloseTo(before + r);
+  });
+  it("piyasa düştüyse düşüş oranında eksik öder, yükseldiyse maliyeti geçmez", () => {
+    const sh = setup(), cost = sh.stock.makarna.cost, m0 = k.S.market.mult.makarna;
+    k.S.market.mult.makarna = m0 * 0.8;
+    expect(k.sellBackPrice(sh, "makarna")).toBeCloseTo(cost * 0.8, 1);
+    k.S.market.mult.makarna = m0 * 1.3;
+    expect(k.sellBackPrice(sh, "makarna")).toBeCloseTo(cost, 1);
+  });
+});
+
+describe("pazarda ilan", () => {
+  const stock = () => { k.buy(mk("makarna", 50, 10), 200); return k.S.shops[0]; };
+  it("piyasa değerinde beklenen hızda satılır, komisyon kesilir, seviye puanı vermez", () => {
+    const sh = stock(), fair = k.offerFair("makarna", 50), xp0 = k.S.xp;
+    sh.shelves[0] = null; // raf satışı karışmasın
+    const o = k.createOffer(sh, "makarna", 200, fair)!, cash0 = k.S.cash;
+    k.step(60);
+    const sold = 200 - o.qty;
+    expect(sold).toBeGreaterThanOrEqual(Math.floor(k.P.makarna.rate * CONFIG.offerRateK) - 1);
+    expect(k.S.cash).toBeCloseTo(cash0 + sold * o.price * (1 - CONFIG.offerFee), 1);
+    expect(k.S.xp).toBe(xp0);
+  });
+  it("piyasa değerinin %10 üstünde alıcı bulmaz", () => {
+    const sh = stock(); sh.shelves[0] = null;
+    const o = k.createOffer(sh, "makarna", 200, k.offerFair("makarna", 50) * 1.11)!;
+    k.step(60); expect(o.qty).toBe(200);
+  });
+  it("ilan hakkı dükkân boyutuyla sınırlıdır ve ilandaki mal depoda yer tutar", () => {
+    const sh = stock();
+    expect(k.createOffer(sh, "makarna", 50, 9)).not.toBeNull();
+    expect(k.createOffer(sh, "makarna", 50, 9)).toBeNull(); // küçük dükkân: 1 ilan
+    expect(k.depotUsed(sh)).toBe(200);
+  });
+  it("geri çekilen ilan depoya paçal olarak döner", () => {
+    const sh = stock(), o = k.createOffer(sh, "makarna", 100, 99)!;
+    k.S.cash = 1e5;
+    k.buy(mk("makarna", 80, 14), 100); // depoda artık 100 @%50 + 100 @%80
+    k.cancelOffer(o.id);
+    expect(sh.stock.makarna.q).toBe(300); expect(sh.stock.makarna.qual).toBeCloseTo(60); expect(k.S.offers.length).toBe(0);
   });
 });
 

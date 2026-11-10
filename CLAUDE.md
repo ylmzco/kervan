@@ -40,5 +40,6 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 ## Bilinen borç
 - `src/ui.ts` prototipten olduğu gibi taşındı, `@ts-nocheck` ile tip denetimi dışında. Ekranlar yeniden tasarlanırken parçalara ayrılıp tiplenecek.
 - Borcunu hiç ödemeyen botlar başta hızlı, sonda yavaş; ölçülü borçlanan en iyisi. Hiçbiri iflas etmiyor: iflasın gerçek bir tehdit olup olmayacağı oynayarak karar verilecek.
-- Geri satış yalnızca rafta olan ürün için arayüzde var; rafta olmayan stok için önce rafa alınması gerekiyor.
+- "Maliyetine hemen sat" yalnızca rafta olan ürün için arayüzde var.
+- Pazarda ilanın gücü (alıcı hızı, komisyon) tahmini; botlar ilan vermiyor, spekülasyonun perakendeye oranı henüz ölçülmedi.
 - Her türden tek dükkân, tek il (İstanbul).

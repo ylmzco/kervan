@@ -3,7 +3,7 @@
 import {CONFIG} from "./data/config";
 import {TYPES} from "./data/shops";
 import {tl,clamp} from "./format";
-import {S,P,T,PIDS,roundP,sysPrice,refPrice,ship,net,sysListing,allListings,shopOf,depotUsed,depotCap,qualMult,shelfRate,shopProfit,profitPerMin,shopRent,upCost,xpNeed,maxBuy,buy,upgrade,openShop,loanLimit,borrow,repay,step,newGame,setOnEv,snapshot,restore,interestRate,taxFor,dayProfit,rentTotal,sellBack,sellBackPrice,dayProfitEstimate} from "./engine";
+import {S,P,T,PIDS,roundP,sysPrice,refPrice,ship,net,sysListing,allListings,shopOf,depotUsed,depotCap,qualMult,shelfRate,shopProfit,profitPerMin,shopRent,upCost,xpNeed,maxBuy,buy,upgrade,openShop,loanLimit,borrow,repay,step,newGame,setOnEv,snapshot,restore,interestRate,taxFor,dayProfit,rentTotal,sellBack,sellBackPrice,dayProfitEstimate,shopOffers,offerFair,offerRateAt,offerSlots,createOffer,cancelOffer} from "./engine";
 
 /* ---- Arayüz ---- */
 const $=id=>document.getElementById(id);
@@ -11,7 +11,9 @@ let dirty=true,pend={},sheetL=null,sheetQ=0,toastT;
 const cur=()=>S.shops[S.cur];
 function toast(m){const t=$("toast"),up=$("sheetbg").classList.contains("on");t.style.top=up?"104px":"auto";t.style.bottom=up?"auto":"66px";t.textContent=m;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2600)}
 setOnEv((k,d)=>{
-  if(k==="sale"){const p=pend[d.pid]||(pend[d.pid]={n:0,r:0,si:d.si});p.n+=d.n;p.r+=d.r}
+  if(k==="sale"){const p=pend[d.pid]||(pend[d.pid]={n:0,r:0,si:d.si,pid:d.pid});p.n+=d.n;p.r+=d.r}
+  else if(k==="offerSale"){const p=pend["o_"+d.pid]||(pend["o_"+d.pid]={n:0,r:0,si:d.si,pid:d.pid,o:1});p.n+=d.n;p.r+=d.r}
+  else if(k==="offerDone"){toast(P[d.pid].ad+" ilanın tükendi.");dirty=true}
   else if(k==="market"){const s=S.market.state;toast("Piyasa güncellendi: "+CONFIG.states[s].ad+(s==="canli"?". Fiyatlar yükseldi.":s==="kotu"?". Fiyatlar düştü.":"."));dirty=true}
   else if(k==="listings"){if(S.tab==="market"&&!sheetL)dirty=true}
   else if(k==="empty"){toast(P[d.pid].ad+" bitti. Raf boş.");dirty=true}
@@ -19,7 +21,7 @@ setOnEv((k,d)=>{
   else if(k==="day"){S.feed.unshift({t:d.day+". gün kapandı: "+d.sold+" satış; kira"+(d.interest>0?", faiz":"")+(d.tax>0?", vergi":""),v:-d.total,si:-1});dirty=true}
   else if(k==="dead"){openEnd()}
 });
-function flushFeed(){let ch=false;for(const id in pend){const p=pend[id];S.feed.unshift({t:p.n+" × "+P[id].ad,v:p.r,nw:1,si:p.si});ch=true}pend={};if(S.feed.length>40)S.feed.length=40;
+function flushFeed(){let ch=false;for(const id in pend){const p=pend[id];S.feed.unshift({t:(p.o?"Pazar: ":"")+p.n+" × "+P[p.pid].ad,v:p.r,nw:1,si:p.si});ch=true}pend={};if(S.feed.length>40)S.feed.length=40;
   if(ch&&S.tab==="shop"){const f=$("feed");if(f)f.innerHTML=feedHtml()}S.feed.forEach(x=>x.nw=0)}
 const feedHtml=()=>{const F=S.feed.filter(x=>x.si===S.cur||x.si===-1).slice(0,10);return F.length?F.map(x=>`<div class="${x.nw?"new":""}"><span>${x.t}</span><b class="num ${x.v<0?"dn":"up"}">${x.v<0?"−":"+"}${tl(Math.abs(x.v))} TL</b></div>`).join(""):`<div><span class="sub">Henüz satış yok.</span></div>`};
 function qTag(q){return `<span class="tag q ${q>=70?"hi":""}">%${Math.round(q)} kalite</span>`}
@@ -53,13 +55,25 @@ function renderShop(){
     h+=`<div class="card"><div class="row"><div><h2>${P[sf.pid].ad}</h2><div class="sub">${i+1}. raf</div></div><div>${st.q>0?qTag(st.qual):`<span class="tag k">Stok yok</span>`}</div></div>
     <div class="kv"><div><b class="num" id="q-${sf.pid}">${st.q}</b><span>stok</span></div><div><b class="num">${tl(rate,1)}/dk</b><span>satış hızı</span></div><div><b class="num ${pr>=0?"up":"dn"}">${st.q>0?(pr>=0?"+":"−")+tl(Math.abs(pr),0):"0"} TL/dk</b><span>kâr</span></div></div>
     <div class="price"><button class="step" data-a="price" data-i="${i}" data-v="-1" aria-label="Fiyatı azalt">−</button><div class="pmid"><b class="num">${tl(sf.price)} TL</b><div class="sub num">piyasa ${tl(ref)} · <span class="${diff>0.5?"dn":diff<-0.5?"up":""}">${Math.abs(diff)<.5?"":diff>0?"+":"−"}%${tl(Math.abs(diff),0)}</span> · maliyet ${tl(st.cost)}</div></div><button class="step" data-a="price" data-i="${i}" data-v="1" aria-label="Fiyatı artır">+</button></div>
-    <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-a="swap" data-i="${i}">Ürünü değiştir</button><button class="btn g" style="flex:1" data-a="goto" data-v="${sf.pid}">Mal al</button></div>${st.q>0?`<button class="btn ghost sm full" style="margin-top:8px" data-a="sellback" data-v="${sf.pid}">Toptancıya geri sat</button>`:""}</div>`});
+    <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-a="swap" data-i="${i}">Ürünü değiştir</button><button class="btn g" style="flex:1" data-a="goto" data-v="${sf.pid}">Mal al</button></div>${st.q>0?`<button class="btn ghost sm full" style="margin-top:8px" data-a="sellback" data-v="${sf.pid}">Maliyetine hemen sat</button>`:""}</div>`});
   const c=upCost(sh);if(c!=null){const z=CONFIG.sizes[sh.size+1];h+=`<div class="card goal"><div class="row"><div><h2>${z.ad} dükkâna büyüt</h2><div class="sub">${z.shelves} raf, ${tl(z.depot,0)} birim depo. Kira ${tl(Math.round(z.rent*t.tier*CONFIG.rentScale),0)} TL/gün olur.</div></div>${costBtn("upgrade",c)}</div><div class="depo"><i id="goalB" data-c="${c}" style="width:${clamp(S.cash/c*100,0,100)}%"></i></div></div>`}
   h+=`<div class="card"><h2 style="margin-bottom:6px">Son satışlar</h2><div class="feed" id="feed">${feedHtml()}</div></div>`;
   return h}
-function renderMarket(){
+function renderMarket(){const sh=cur(),n=shopOffers(sh).length,mv=S.mview==="offers"?"offers":"buy";
+  const seg=`<div class="seg"><button class="${mv==="buy"?"on":""}" data-a="mview" data-v="buy">Mal al</button><button class="${mv==="offers"?"on":""}" data-a="mview" data-v="offers">İlanlarım (${n}/${offerSlots(sh)})</button></div>`;
+  return mv==="offers"?shopChips()+seg+renderOffers():renderBuy(seg)}
+function renderOffers(){const sh=cur(),os=shopOffers(sh),slots=offerSlots(sh);
+  let h=`<div class="card"><h2>Pazarda ilan</h2><div class="sub" style="margin-top:4px">Depondaki malı toptan satışa çıkar. Alıcılar piyasa değerine yakın fiyatlı ilanları alır; fiyatı düşürdükçe hızlanır. Komisyon %${tl(CONFIG.offerFee*100,0)}. İlandaki mal depoda yer tutar, raftan satılmaz.</div></div>`;
+  os.forEach(o=>{const fair=offerFair(o.pid,o.q),rate=offerRateAt(o.pid,o.q,o.price),df=(o.price/fair-1)*100,unit=o.price*(1-CONFIG.offerFee)-o.cost;
+    h+=`<div class="card"><div class="row"><div><h2>${P[o.pid].ad}</h2><div class="sub num"><span id="o-${o.id}">${o.qty}</span> birim kaldı</div></div>${qTag(o.q)}</div>
+    <div class="kv"><div><b class="num">${tl(o.price)} TL</b><span>ilan fiyatı</span></div><div><b class="num ${rate>0?"":"dn"}">${tl(rate,1)}/dk</b><span>${rate>0?"alıcı hızı":"alıcı yok"}</span></div><div><b class="num ${unit>=0?"up":"dn"}">${unit>=0?"+":"−"}${tl(Math.abs(unit))} TL</b><span>birim kâr</span></div></div>
+    <div class="sub num" style="margin-top:10px">Piyasa değeri ${tl(fair)} TL · ilanın ${Math.abs(df)<.5?"tam değerinde":"%"+tl(Math.abs(df),0)+(df>0?" üstünde":" altında")} · maliyetin ${tl(o.cost)} TL</div>
+    <button class="btn ghost full sm" style="margin-top:10px" data-a="ocancel" data-v="${o.id}">İlanı geri çek</button></div>`});
+  h+=os.length<slots?`<button class="btn full" data-a="offernew">İlan ver</button>`:`<div class="sub" style="text-align:center;padding:8px">İlan hakkın doldu. Dükkânı büyütünce artar.</div>`;
+  return h}
+function renderBuy(seg){
   const sh=cur(),t=T[sh.type],id=S.sel[t.id],p=P[id],h0=S.market.hist[id],prev=h0.length>1?h0[h0.length-2]:h0[0],c0=sysPrice(id),ch=(c0/prev-1)*100,st=sh.stock[id];
-  let h=shopChips()+`<div class="prods">`+t.products.map(a=>{if(S.level<P[a[0]].lvl)return `<button class="lock" data-a="sel" data-v="${a[0]}"><b>${a[1]}</b><span>${P[a[0]].lvl}. seviye</span></button>`;const b=allListings(a[0])[0];return `<button class="${a[0]===id?"on":""}" data-a="sel" data-v="${a[0]}"><b>${a[1]}</b><span class="num">${tl(net(b))} TL</span></button>`}).join("")+`</div>`;
+  let h=shopChips()+seg+`<div class="prods">`+t.products.map(a=>{if(S.level<P[a[0]].lvl)return `<button class="lock" data-a="sel" data-v="${a[0]}"><b>${a[1]}</b><span>${P[a[0]].lvl}. seviye</span></button>`;const b=allListings(a[0])[0];return `<button class="${a[0]===id?"on":""}" data-a="sel" data-v="${a[0]}"><b>${a[1]}</b><span class="num">${tl(net(b))} TL</span></button>`}).join("")+`</div>`;
   h+=`<div class="card"><div class="row"><div><h2>${p.ad}</h2><div class="sub num">Sistem fiyatı ${tl(c0)} TL <span class="${ch>0.5?"up":ch<-0.5?"dn":""}">${Math.abs(ch)<.5?"":(ch>0?"▲":"▼")+" %"+tl(Math.abs(ch),0)}</span></div></div><div style="text-align:right"><b class="num">${tl(refPrice(id))} TL</b><div class="sub">dükkânda satılır</div></div></div>${spark(id)}<div class="sub num">${t.ad} deposunda: ${st.q} birim${st.q?` · %${Math.round(st.qual)} kalite · ${tl(st.cost)} TL maliyet`:""} · temel hız ${tl(p.rate,1)}/dk</div></div>`;
   allListings(id).forEach((l,i)=>{const mrg=(refPrice(id)/net(l)-1)*100;
     h+=`<button class="lst ${l.sys?"sys":""}" data-a="open" data-v="${l.id}"><div class="row"><div><b>${l.seller}</b> ${i===0&&!l.sys?`<span class="tag best">En ucuz</span>`:""} ${l.kelepir?`<span class="tag k">Kelepir</span>`:""}<div class="sm">${l.city} · ${l.km} km · ${l.sys?"sınırsız":l.qty+" birim"}</div></div><div style="text-align:right"><div class="net num">${tl(net(l))} TL</div><div class="sm num">${tl(l.price)} + ${tl(ship(l))} nakliye</div></div></div><div class="row" style="margin-top:8px">${qTag(l.q)}<span class="sm num">hız ×${tl(qualMult(l.q),1)} · <span class="${mrg>0?"up":"dn"}">${mrg>=0?"+":"−"}%${tl(Math.abs(mrg),0)} marj</span></span></div></button>`});
@@ -76,6 +90,7 @@ function tickUI(){
   if(S.tab==="shop"){const sh=cur(),d=depotUsed(sh),n=$("depoN");if(n){n.textContent=d;$("depoB").style.width=d/depotCap(sh)*100+"%"}
     sh.shelves.forEach(sf=>{if(sf){const e=$("q-"+sf.pid);if(e)e.textContent=sh.stock[sf.pid].q}});
     const g=$("goalB");if(g)g.style.width=clamp(S.cash/+g.dataset.c*100,0,100)+"%"}
+  if(S.tab==="market")shopOffers(cur()).forEach(o=>{const e=$("o-"+o.id);if(e)e.textContent=o.qty});
   if(S.tab==="home"){const b=$("xpB");if(b){const a0=+b.dataset.a0,a1=+b.dataset.a1;b.style.width=clamp((S.xp-a0)/(a1-a0)*100,0,100)+"%";const dp=dayProfit(),tx=taxFor(Math.max(0,dp));$("dpT").textContent=tl(dp,0);$("txT").textContent=tx>0?"−"+tl(tx,0)+" TL":"vergi yok";$("xpT").textContent="Sonraki seviyeye "+tl(Math.max(0,a1-S.xp),0)+" TL ciro"}}
   $("main").querySelectorAll("[data-cost]").forEach(b=>{if(b.disabled!==(S.cash<+b.dataset.cost))dirty=true});
 }
@@ -109,13 +124,27 @@ function bankSheet(){sheetL=null;const lim=loanLimit(),av=Math.floor(Math.max(0,
     if(est<=0){w.textContent="Rafların şu an kâr üretmiyor; bu faizi mal satarak karşılaman gerekecek.";w.className="sub dn"}
     else if(fi>est*.5){w.textContent="Dikkat: bu faiz, tahmini günlük kârının (%"+tl(est?fi/est*100:0,0)+") yarısından fazlasını götürür.";w.className="sub dn"}
     else{w.textContent="Bu faiz, tahmini günlük kârının %"+tl(fi/est*100,0)+" kadarı.";w.className="sub"}};b.oninput=u;u()}if(q){const u=()=>$("pv").textContent=f(+q.value);q.oninput=u;u()}}
+let sheetO=null;
+function offerPick(){sheetL=null;const sh=cur(),have=T[sh.type].products.map(a=>P[a[0]]).filter(p=>sh.stock[p.id].q>0);
+  openSheet(`<h2 style="margin-bottom:10px">Hangi malı ilana çıkaracaksın?</h2>`+(have.length?have.map(p=>{const st=sh.stock[p.id];return `<button class="lst" data-a="offerpid" data-v="${p.id}"><div class="row"><b>${p.ad}</b><span class="sm num">${st.q} birim · %${Math.round(st.qual)} · maliyet ${tl(st.cost)}</span></div></button>`}).join(""):`<div class="sub" style="margin-bottom:12px">Depoda mal yok. Önce pazardan al.</div>`)+`<button class="btn ghost full" data-a="close">Kapat</button>`)}
+function offerCalc(){const o=sheetO,sh=cur(),st=sh.stock[o.pid],fair=offerFair(o.pid,st.qual),rate=offerRateAt(o.pid,st.qual,o.price),df=(o.price/fair-1)*100,unit=o.price*(1-CONFIG.offerFee)-st.cost;o.qty=+$("oq").value;
+  $("oqv").textContent=o.qty+" birim";$("opv").textContent=tl(o.price)+" TL";$("opd").textContent=Math.abs(df)<.5?"piyasa değerinde":"piyasa değerinin %"+tl(Math.abs(df),0)+(df>0?" üstünde":" altında");
+  const r=$("ort");r.textContent=rate>0?tl(rate,1)+"/dk · yaklaşık "+tl(o.qty/rate,0)+" dk":"alıcı çıkmaz";r.className=rate>0?"":"dn";
+  const u=$("oun");u.textContent=(unit>=0?"+":"−")+tl(Math.abs(unit))+" TL";u.className=unit>=0?"up":"dn";$("otot").textContent=tl(o.qty*o.price*(1-CONFIG.offerFee),0)+" TL"}
+function offerForm(pid){const sh=cur(),st=sh.stock[pid],fair=offerFair(pid,st.qual);sheetO={pid,qty:st.q,price:roundP(fair)};
+  openSheet(`<div class="row"><div><h2>${P[pid].ad}: ilan ver</h2><div class="sub num">Piyasa değeri ${tl(fair)} TL · maliyetin ${tl(st.cost)} TL</div></div>${qTag(st.qual)}</div>
+  <div class="price"><button class="step" data-a="oprice" data-v="-1" aria-label="Fiyatı azalt">−</button><div class="pmid"><b class="num" id="opv"></b><div class="sub num" id="opd"></div></div><button class="step" data-a="oprice" data-v="1" aria-label="Fiyatı artır">+</button></div>
+  <div class="row" style="margin-top:14px"><b>Miktar</b><b class="num" style="font-size:20px" id="oqv"></b></div><input type="range" id="oq" min="1" max="${st.q}" value="${st.q}">
+  <table class="tbl num"><tr><td>Tahmini satış</td><td id="ort"></td></tr><tr><td>Komisyon sonrası birim kâr</td><td id="oun"></td></tr><tr><td>Hepsi satılırsa kasaya girer</td><td id="otot"></td></tr></table>
+  <button class="btn g full" data-a="ocreate">İlana çıkar</button><button class="btn ghost full" style="margin-top:8px" data-a="close">Vazgeç</button>`);
+  $("oq").oninput=offerCalc;offerCalc()}
 let sheetP=null;
-function sellCalc(){const sh=cur(),st=sh.stock[sheetP],q=+$("sr").value,p=sellBackPrice(sh,sheetP);$("sv").textContent=q+" birim";$("st1").textContent=tl(q*p)+" TL";$("st2").textContent="−"+tl(q*(st.cost-p))+" TL";$("sdo").textContent=q+" birimi geri sat"}
+function sellCalc(){const sh=cur(),st=sh.stock[sheetP],q=+$("sr").value,p=sellBackPrice(sh,sheetP);$("sv").textContent=q+" birim";$("st1").textContent=tl(q*p)+" TL";const z=q*(st.cost-p);$("st2").textContent=z>0.005?"−"+tl(z)+" TL":"yok";$("st2").className=z>0.005?"dn":"";$("sdo").textContent=q+" birimi hemen sat"}
 function sellSheet(pid){sheetL=null;sheetP=pid;const sh=cur(),st=sh.stock[pid],p=sellBackPrice(sh,pid);
-  openSheet(`<h2>${P[pid].ad}: toptancıya geri sat</h2><div class="sub">Sistem toptancısı malı her zaman maliyetinin altında geri alır. Nakde sıkıştığında ya da borç kapatırken çıkış yoludur.</div>
-  <table class="tbl num"><tr><td>Maliyetin</td><td>${tl(st.cost)} TL</td></tr><tr><td>Geri alım fiyatı</td><td class="dn">${tl(p)} TL</td></tr></table>
+  openSheet(`<h2>${P[pid].ad}: maliyetine hemen sat</h2><div class="sub">Mal anında maliyetine nakde döner. Piyasa, aldığın günden beri düştüyse düşüş kadar eksik ödenir. Kâr etmek için malı rafta ya da pazarda ilanla sat.</div>
+  <table class="tbl num"><tr><td>Maliyetin</td><td>${tl(st.cost)} TL</td></tr><tr><td>Hemen satış fiyatı</td><td class="${p<st.cost-.005?"dn":""}">${tl(p)} TL</td></tr></table>
   <div class="row"><b>Miktar</b><b class="num" style="font-size:20px" id="sv"></b></div><input type="range" id="sr" min="1" max="${st.q}" value="${st.q}">
-  <table class="tbl num"><tr><td>Kasaya girecek</td><td id="st1"></td></tr><tr><td>Zarar</td><td class="dn" id="st2"></td></tr></table>
+  <table class="tbl num"><tr><td>Kasaya girecek</td><td id="st1"></td></tr><tr><td>Zarar</td><td id="st2"></td></tr></table>
   <button class="btn full" data-a="dosell" id="sdo"></button><button class="btn ghost full" style="margin-top:8px" data-a="close">Vazgeç</button>`);
   $("sr").oninput=sellCalc;sellCalc()}
 function taxSheet(){sheetL=null;const dp=dayProfit(),f=x=>tl(x,0)+" TL";let lo=0;
@@ -140,7 +169,13 @@ document.addEventListener("click",e=>{
   else if(a==="bank"){bankSheet();return}
   else if(a==="tax"){taxSheet();return}
   else if(a==="sellback"){sellSheet(v);return}
-  else if(a==="dosell"){const q=+$("sr").value,r=sellBack(cur(),sheetP,q);closeSheet();if(r)toast(q+" birim "+P[sheetP].ad+" geri satıldı: "+tl(r,0)+" TL.")}
+  else if(a==="mview"){S.mview=v;top()}
+  else if(a==="offernew"){offerPick();return}
+  else if(a==="offerpid"){offerForm(v);return}
+  else if(a==="oprice"){const f=offerFair(sheetO.pid,cur().stock[sheetO.pid].qual),stp=Math.max(.05,roundP(f*.02));sheetO.price=clamp(roundP(sheetO.price+stp*v),roundP(f*.5),roundP(f*1.5));offerCalc();return}
+  else if(a==="ocreate"){const o=createOffer(cur(),sheetO.pid,sheetO.qty,sheetO.price);closeSheet();if(o)toast(o.qty+" birim "+P[o.pid].ad+" ilana çıktı.");else toast("İlan verilemedi.")}
+  else if(a==="ocancel"){if(cancelOffer(+v))toast("İlan geri çekildi, mal depoya döndü.")}
+  else if(a==="dosell"){const q=+$("sr").value,r=sellBack(cur(),sheetP,q);closeSheet();if(r)toast(q+" birim "+P[sheetP].ad+" satıldı: "+tl(r,0)+" TL.")}
   else if(a==="borrow"){const x=borrow(+$("bq").value);if(x)toast(tl(x,0)+" TL kredi çekildi.");bankSheet();tickUI();return}
   else if(a==="repay"){const x=repay(+$("pq").value);if(x)toast(tl(x,0)+" TL borç ödendi.");bankSheet();tickUI();return}
   else if(a==="goto"){S.cur=S.shops.indexOf(shopOf(v));S.sel[P[v].type]=v;S.tab="market";top()}

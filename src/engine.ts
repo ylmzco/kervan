@@ -5,20 +5,22 @@ import { CITIES, SELLERS } from "./data/world";
 import { clamp } from "./format";
 
 export interface Product { id: string; ad: string; sys: number; type: string; rate: number; markup: number; lvl: number }
-export interface Stock { q: number; qual: number; cost: number }
+export interface Stock { q: number; qual: number; cost: number; mref?: number } // mref: alış anındaki piyasa seviyesi (paçal)
 export interface Shelf { pid: string; price: number }
 export interface Shop { type: string; val: number; size: number; shelves: (Shelf | null)[]; stock: Record<string, Stock>; acc: Record<string, number> }
 export interface Listing { id: number; pid: string; seller: string; city: string; km: number; q: number; qty: number; price: number; kelepir?: boolean; sys?: boolean }
+export interface Offer { id: number; si: number; pid: string; qty: number; price: number; q: number; cost: number; acc: number; mref?: number }
 export interface FeedItem { t: string; v: number; si: number; nw?: number }
 export interface State {
   cash: number; debt: number; t: number; day: number; xp: number; level: number;
   shops: Shop[]; cur: number; sel: Record<string, string>; feed: FeedItem[];
   listings: Record<string, Listing[]>;
+  offers: Offer[];
   market: { state: MarketState; nextAt: number; mult: Record<string, number>; hist: Record<string, number[]> };
   churnAt: number; d: { rev: number; buy: number; sold: number; cogs: number };
   dead: boolean; speed: number; tab: "home" | "shop" | "market"; first: boolean;
 }
-export type Ev = "sale" | "market" | "listings" | "empty" | "level" | "day" | "dead";
+export type Ev = "offerSale" | "offerDone" | "sale" | "market" | "listings" | "empty" | "level" | "day" | "dead";
 
 export const P: Record<string, Product> = {};
 export const T: Record<string, ShopType> = {};
@@ -42,7 +44,7 @@ const pick = <X,>(a: X[]): X => a[Math.floor(rnd() * a.length)];
 export let S: State = null as unknown as State;
 let lid = 1;
 export const snapshot = () => ({ S, lid });
-export function restore(j: { S: State; lid: number }) { S = j.S; lid = j.lid; }
+export function restore(j: { S: State; lid: number }) { S = j.S; lid = j.lid; if (!S.offers) S.offers = []; }
 
 let onEv: (k: Ev, d?: any) => void = () => {};
 export function setOnEv(f: (k: Ev, d?: any) => void) { onEv = f; }
@@ -56,7 +58,7 @@ function mkShop(type: string): Shop {
   return sh;
 }
 export function newGame() {
-  S = { cash: CONFIG.startCash, debt: 0, t: 0, day: 1, xp: 0, level: 1, shops: [mkShop("bakkal")], cur: 0, sel: {}, feed: [], listings: {},
+  S = { cash: CONFIG.startCash, debt: 0, t: 0, day: 1, xp: 0, level: 1, shops: [mkShop("bakkal")], cur: 0, sel: {}, feed: [], listings: {}, offers: [],
     market: { state: "sakin", nextAt: CONFIG.marketSec, mult: {}, hist: {} }, churnAt: CONFIG.churnSec, d: { rev: 0, buy: 0, sold: 0, cogs: 0 }, dead: false, speed: 1, tab: "home", first: true };
   TYPES.forEach((t) => (S.sel[t.id] = t.products[0][0]));
   PIDS.forEach((id) => {
@@ -69,10 +71,11 @@ export function newGame() {
 // ---- Fiyatlar ve ilanlar ----
 export const sysPrice = (id: string) => P[id].sys * S.market.mult[id];
 export const refPrice = (id: string) => sysPrice(id) * (1 + P[id].markup);
+/** Kalite düştükçe toptan indirim büyür: %20 kalite ≈ %34, %85 kalite ≈ %8. */
+export const qualDiscount = (q: number) => 0.34 - ((q - 20) / 65) * 0.26;
 function genListing(id: string): Listing {
   const q = ri(20, 85), c = pick(CITIES);
-  // Kalite düştükçe indirim büyür: %20 kalite ≈ %34, %85 kalite ≈ %8 indirim.
-  let d = 0.34 - ((q - 20) / 65) * 0.26 + rr(-0.04, 0.04);
+  let d = qualDiscount(q) + rr(-0.04, 0.04);
   const kelepir = rnd() < 0.1;
   if (kelepir) d += rr(0.08, 0.14);
   return { id: lid++, pid: id, seller: pick(SELLERS), city: c[0], km: c[1], q, qty: ri(10, 80) * 10, price: +(sysPrice(id) * (1 - d)).toFixed(2), kelepir };
@@ -84,7 +87,9 @@ export function allListings(id: string): Listing[] { return S.listings[id].slice
 
 // ---- Dükkân ----
 export const shopOf = (pid: string) => S.shops.find((s) => s.type === P[pid].type);
-export const depotUsed = (sh: Shop) => Object.values(sh.stock).reduce((s, x) => s + x.q, 0);
+export const shopOffers = (sh: Shop) => S.offers.filter((o) => S.shops[o.si] === sh);
+/** İlana çıkarılan mal da depoda yer tutar. */
+export const depotUsed = (sh: Shop) => Object.values(sh.stock).reduce((s, x) => s + x.q, 0) + shopOffers(sh).reduce((s, o) => s + o.qty, 0);
 export const depotCap = (sh: Shop) => CONFIG.sizes[sh.size].depot;
 export const priceMult = (r: number) => clamp(1 + (1 - r) * 3, 0.6, 1.6);
 export const qualMult = (q: number) => (q >= 70 ? 1.4 : q >= 40 ? 0.9 + ((q - 40) / 30) * 0.2 : 0.8);
@@ -108,6 +113,8 @@ export function buy(l: Listing, qty: number) {
   qty = Math.min(qty, maxBuy(l));
   if (!sh || qty <= 0) return 0;
   const st = sh.stock[l.pid], cost = qty * net(l);
+  const m = S.market.mult[l.pid];
+  st.mref = ((st.mref || m) * st.q + m * qty) / (st.q + qty);
   st.qual = (st.qual * st.q + l.q * qty) / (st.q + qty);
   st.cost = (st.cost * st.q + cost) / (st.q + qty);
   st.q += qty; S.cash -= cost; S.d.buy += cost;
@@ -123,12 +130,13 @@ export function buy(l: Listing, qty: number) {
 export function upgrade(sh: Shop) { const c = upCost(sh); if (c == null || S.cash < c) return false; S.cash -= c; sh.val += c; sh.size++; fitShelves(sh); return true; }
 export function openShop(type: string) { const t = T[type]; if (S.level < t.level || S.cash < t.cost || S.shops.some((s) => s.type === type)) return false; S.cash -= t.cost; S.shops.push(mkShop(type)); return true; }
 
-/** Sistem toptancısının geri alım fiyatı. Her zaman maliyetin altındadır. */
+/** Hemen satış fiyatı: maliyet. Piyasa alış anından beri düştüyse düşüş oranında azalır; yükseldiyse maliyeti geçmez. */
 export function sellBackPrice(sh: Shop, pid: string) {
-  const st = sh.stock[pid];
-  return +Math.min(sysPrice(pid) * (CONFIG.sellBackBase + (CONFIG.sellBackQual * st.qual) / 100), st.cost * CONFIG.sellBackMaxCost).toFixed(2);
+  const st = sh.stock[pid], m = S.market.mult[pid];
+  const k = CONFIG.sellBackMarketRisk ? Math.min(1, m / (st.mref || m)) : 1;
+  return +(st.cost * k).toFixed(2);
 }
-/** Depodaki malı zararına nakde çevirir. Seviye puanı kazandırmaz. */
+/** Depodaki malı anında nakde çevirir. Kâr getirmez, seviye puanı kazandırmaz. */
 export function sellBack(sh: Shop, pid: string, qty: number) {
   const st = sh.stock[pid];
   qty = Math.min(qty, st.q);
@@ -140,8 +148,38 @@ export function sellBack(sh: Shop, pid: string, qty: number) {
   return r;
 }
 
+// ---- Pazarda ilan ----
+/** Bu kalitedeki malın pazardaki toptan değeri. */
+export const offerFair = (pid: string, q: number) => sysPrice(pid) * (1 - qualDiscount(q));
+/** Verilen fiyatla dakikada kaç birim alıcı bulur. */
+export const offerRateAt = (pid: string, q: number, price: number) => P[pid].rate * CONFIG.offerRateK * clamp(1 + (1 - price / offerFair(pid, q)) * CONFIG.offerPriceSens, 0, 2);
+export const offerSlots = (sh: Shop) => CONFIG.sizes[sh.size].offers;
+/** Depodaki malı ilana çıkarır. Mal depoda yer tutmaya devam eder, raftan satılmaz. */
+export function createOffer(sh: Shop, pid: string, qty: number, price: number): Offer | null {
+  const si = S.shops.indexOf(sh), st = sh.stock[pid];
+  qty = Math.min(Math.floor(qty), st ? st.q : 0);
+  if (si < 0 || qty <= 0 || !(price > 0) || shopOffers(sh).length >= offerSlots(sh)) return null;
+  const o: Offer = { id: lid++, si, pid, qty, price: +price.toFixed(2), q: st.qual, cost: st.cost, acc: 0, mref: st.mref };
+  st.q -= qty; if (st.q === 0) sh.acc[pid] = 0;
+  S.offers.push(o);
+  return o;
+}
+/** İlanı geri çeker: kalan mal depodaki stokla ağırlıklı ortalamayla birleşir. */
+export function cancelOffer(id: number) {
+  const o = S.offers.find((x) => x.id === id);
+  if (!o) return false;
+  const st = S.shops[o.si].stock[o.pid];
+  const m = S.market.mult[o.pid];
+  st.mref = ((st.mref || m) * st.q + (o.mref || m) * o.qty) / (st.q + o.qty);
+  st.qual = (st.qual * st.q + o.q * o.qty) / (st.q + o.qty);
+  st.cost = (st.cost * st.q + o.cost * o.qty) / (st.q + o.qty);
+  st.q += o.qty;
+  S.offers = S.offers.filter((x) => x !== o);
+  return true;
+}
+
 // ---- Banka ----
-export const assets = () => S.shops.reduce((s, sh) => s + sh.val + Object.values(sh.stock).reduce((a, x) => a + x.q * x.cost, 0), 0);
+export const assets = () => S.shops.reduce((s, sh) => s + sh.val + Object.values(sh.stock).reduce((a, x) => a + x.q * x.cost, 0), 0) + S.offers.reduce((s, o) => s + o.qty * o.cost, 0);
 export const loanLimit = () => Math.floor((assets() * CONFIG.loanRatio) / 100) * 100;
 export function borrow(x: number) { x = Math.min(x, loanLimit() - S.debt); if (x <= 0) return 0; S.debt += x; S.cash += x; return x; }
 export function repay(x: number) { x = Math.min(x, S.debt, Math.max(0, S.cash)); if (x <= 0) return 0; S.debt -= x; S.cash -= x; return x; }
@@ -196,7 +234,7 @@ function endDay() {
   S.cash -= total;
   ev("day", { day: S.day, sold: S.d.sold, rent, interest, tax, total });
   S.day++; S.d = { rev: 0, buy: 0, sold: 0, cogs: 0 };
-  if (S.cash < 0 && S.shops.every((sh) => depotUsed(sh) === 0)) { S.dead = true; ev("dead"); }
+  if (S.cash < 0 && S.offers.length === 0 && S.shops.every((sh) => depotUsed(sh) === 0)) { S.dead = true; ev("dead"); }
 }
 /** Oyunu dt saniye ilerletir. */
 export function step(dt: number) {
@@ -216,6 +254,18 @@ export function step(dt: number) {
       if (st.q === 0) { sh.acc[sf.pid] = 0; ev("empty", { pid: sf.pid }); }
     }
   }));
+  // Pazardaki ilanlar: toptan satış seviye puanı kazandırmaz.
+  for (const o of S.offers.slice()) {
+    o.acc += (offerRateAt(o.pid, o.q, o.price) * dt) / 60;
+    const n = Math.min(o.qty, Math.floor(o.acc));
+    if (n > 0) {
+      o.acc -= n; o.qty -= n;
+      const r = n * o.price * (1 - CONFIG.offerFee);
+      S.cash += r; S.d.rev += r; S.d.cogs = (S.d.cogs || 0) + n * o.cost;
+      ev("offerSale", { pid: o.pid, n, r, si: o.si });
+      if (o.qty === 0) { S.offers = S.offers.filter((x) => x !== o); ev("offerDone", { pid: o.pid }); }
+    }
+  }
   while (S.xp >= xpNeed(S.level + 1)) { S.level++; ev("level"); }
   while (S.t >= S.churnAt) { S.churnAt += CONFIG.churnSec; churn(); }
   while (S.t >= S.market.nextAt) marketUpdate();
