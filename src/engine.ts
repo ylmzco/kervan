@@ -130,13 +130,13 @@ export function buy(l: Listing, qty: number) {
 export function upgrade(sh: Shop) { const c = upCost(sh); if (c == null || S.cash < c) return false; S.cash -= c; sh.val += c; sh.size++; fitShelves(sh); return true; }
 export function openShop(type: string) { const t = T[type]; if (S.level < t.level || S.cash < t.cost || S.shops.some((s) => s.type === type)) return false; S.cash -= t.cost; S.shops.push(mkShop(type)); return true; }
 
-/** Hemen satış fiyatı: maliyet. Piyasa alış anından beri düştüyse düşüş oranında azalır; yükseldiyse maliyeti geçmez. */
+/** Hemen satış fiyatı: maliyetin sellBackLoss kadar altı. */
 export function sellBackPrice(sh: Shop, pid: string) {
   const st = sh.stock[pid], m = S.market.mult[pid];
   const k = CONFIG.sellBackMarketRisk ? Math.min(1, m / (st.mref || m)) : 1;
-  return +(st.cost * k).toFixed(2);
+  return +(st.cost * (1 - CONFIG.sellBackLoss) * k).toFixed(2);
 }
-/** Depodaki malı anında nakde çevirir. Kâr getirmez, seviye puanı kazandırmaz. */
+/** Depodaki malı anında, zararına nakde çevirir. Seviye puanı kazandırmaz. */
 export function sellBack(sh: Shop, pid: string, qty: number) {
   const st = sh.stock[pid];
   qty = Math.min(qty, st.q);

@@ -17,9 +17,10 @@ export const CONFIG = {
     { from: 0.8, k: 2.25 },
     { from: 1.0001, k: 4 },
   ],
-  // Maliyetine hemen satış: mal anında maliyetine nakde döner.
-  // true ise piyasa alış anına göre düştüyse düşüş oranında eksik ödenir (fiyat riski oyuncuda kalır).
-  sellBackMarketRisk: true,
+  // Hemen satış: mal anında nakde döner ama maliyetin sellBackLoss kadar altında. Çıkış yoludur, bedeli vardır.
+  sellBackLoss: 0.25,
+  // true ise piyasa alış anına göre düştüyse düşüş oranında ayrıca eksik ödenir.
+  sellBackMarketRisk: false,
   // Pazarda ilan: alıcı hızı = ürünün taban hızı x offerRateK; fiyat piyasa değerinin %10 üstündeyse kimse almaz, %10 altındaysa iki kat hızlı gider.
   offerRateK: 3,
   offerPriceSens: 10,
