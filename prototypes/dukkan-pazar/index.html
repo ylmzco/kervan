@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Kervan Dükkân ve Pazar</title>
+<style>
+:root{color-scheme:light;--bg:#f3eee4;--card:#fffdf8;--ink:#1c2420;--mut:#6f766f;--line:#e2dbcd;--green:#17794a;--greenbg:#e3f1e8;--red:#b8402f;--redbg:#f8e4df;--amber:#a86a00;--amberbg:#fbeccb;--dark:#1c2420}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#d9d2c3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);font-size:15px;line-height:1.35}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+.num{font-variant-numeric:tabular-nums}
+#app{max-width:480px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden}
+header{background:var(--dark);color:#f3eee4;padding:12px 16px 10px}
+.hrow{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}
+#cash{font-size:30px;font-weight:700;letter-spacing:-.02em}
+#cash.neg{color:#ff9b8a}
+.hbtn{background:#2f3a34;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;min-width:44px;min-height:34px}
+.mk{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:13px}
+.chip{border-radius:999px;padding:3px 10px;font-weight:700;font-size:12px}
+.st-sakin{background:#3a4640;color:#e8e2d4}.st-canli{background:#1f8f58;color:#fff}.st-kotu{background:#b8402f;color:#fff}
+.bar{flex:1;height:4px;background:#3a4640;border-radius:2px;overflow:hidden}.bar i{display:block;height:100%;background:#c9b26a}
+main{flex:1;overflow-y:auto;padding:14px 14px 24px;-webkit-overflow-scrolling:touch}
+nav{display:flex;border-top:1px solid var(--line);background:var(--card)}
+nav button{flex:1;padding:13px 0 15px;font-weight:700;color:var(--mut);font-size:14px;border-top:3px solid transparent}
+nav button.on{color:var(--ink);border-top-color:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+h2{font-size:17px;margin:0}
+.sub{color:var(--mut);font-size:13px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.depo{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:8px}.depo i{display:block;height:100%;background:var(--ink)}
+.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kv div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.kv b{display:block;font-size:15px}
+.kv span{font-size:11px;color:var(--mut)}
+.price{display:flex;align-items:center;gap:10px;margin-top:12px}
+.step{width:46px;height:46px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:22px;font-weight:700}
+.step:active,.btn:active,.lst:active{transform:scale(.97)}
+.pmid{flex:1;text-align:center}.pmid b{font-size:22px}
+.btn{white-space:nowrap;background:var(--ink);color:#fff;border-radius:12px;padding:12px 16px;font-weight:700;min-height:46px}
+.btn.g{background:var(--green)}.btn.ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.btn[disabled]{opacity:.4}
+.full{width:100%;display:block;text-align:center}
+.tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;white-space:nowrap}
+.tag.q{background:var(--bg);border:1px solid var(--line)}.tag.hi{background:var(--greenbg);color:var(--green);border-color:transparent}
+.tag.k{background:var(--amberbg);color:var(--amber)}.tag.best{background:var(--ink);color:#fff}
+.up{color:var(--green)}.dn{color:var(--red)}
+.feed{font-size:13px}.feed div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)}
+.feed div:last-child{border:0}.feed .new{animation:fl .8s}
+@keyframes fl{from{background:var(--greenbg)}to{background:transparent}}
+.prods{display:flex;gap:8px;overflow-x:auto;margin:0 -14px 12px;padding:0 14px 2px;scrollbar-width:none}
+.prods::-webkit-scrollbar{display:none}
+.prods button{flex:0 0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;text-align:left;min-width:96px}
+.prods button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.prods b{display:block;font-size:14px}.prods span{font-size:12px;opacity:.8}
+.lst{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px}
+.lst.sys{border-style:dashed}
+.lst .net{font-size:19px;font-weight:800;color:var(--green)}
+.lst .sm{font-size:12px;color:var(--mut)}
+.hint{background:var(--amberbg);border-color:transparent}
+.goal .depo i{background:var(--green)}
+#sheetbg{position:absolute;inset:0;background:rgba(20,24,22,.45);display:none;align-items:flex-end;z-index:5}
+#sheetbg.on{display:flex}
+#sheet{background:var(--card);width:100%;border-radius:18px 18px 0 0;padding:18px 16px 22px;max-height:88%;overflow-y:auto}
+input[type=range]{width:100%;height:36px;accent-color:var(--green)}
+.qk{display:flex;gap:8px;margin:6px 0 12px}.qk button{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 0;font-weight:700}
+.tbl{width:100%;font-size:14px;border-collapse:collapse;margin:8px 0 14px}.tbl td{padding:5px 0;border-bottom:1px solid var(--line)}.tbl td:last-child{text-align:right;font-weight:700}
+#toast{position:absolute;left:14px;right:14px;top:104px;background:var(--ink);color:#fff;border-radius:12px;padding:11px 14px;font-size:14px;font-weight:600;opacity:0;transform:translateY(-8px);transition:.25s;pointer-events:none;z-index:6}
+#toast.on{opacity:1;transform:none}
+svg.sp{display:block;width:100%;height:38px}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="hrow">
+    <div><div class="lbl">Kasa</div><div id="cash" class="num">0</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div style="text-align:right;margin-right:4px"><div class="lbl" id="day">1. gün</div><div class="num" style="font-size:13px" id="ppm">+0 TL/dk</div></div>
+      <button class="hbtn" id="spd" data-a="speed">1×</button>
+      <button class="hbtn" data-a="settings">Ayar</button>
+    </div>
+  </div>
+  <div class="mk"><span class="chip" id="mst">Sakin piyasa</span><div class="bar"><i id="mbar"></i></div><span class="num" id="mcd">0:00</span></div>
+</header>
+<main id="main"></main>
+<nav><button data-a="tab" data-v="shop" id="t-shop">Dükkân</button><button data-a="tab" data-v="market" id="t-market">Pazar</button></nav>
+<div id="toast"></div>
+<div id="sheetbg" data-a="closebg"><div id="sheet"></div></div>
+</div>
+<script>
+"use strict";
+/* ---- Ayar değerleri: dengenin tamamı burada ---- */
+const CONFIG={
+  startCash:3000, depot:1200, rent:120, daySec:240, marketSec:150,
+  rateScale:1, shipPerKm:0.004, churnSec:12,
+  slotCosts:[0,1500,5000,12000], shop2Cost:35000,
+  states:{sakin:{ad:"Sakin piyasa",m:1},canli:{ad:"Canlı piyasa",m:1.12},kotu:{ad:"Kötü piyasa",m:0.88}},
+  products:[
+    {id:"makarna",ad:"Makarna",sys:14,markup:.42,rate:12},
+    {id:"seker",ad:"Şeker",sys:36,markup:.30,rate:9},
+    {id:"cay",ad:"Çay",sys:42,markup:.28,rate:7},
+    {id:"yag",ad:"Ayçiçek yağı",sys:78,markup:.23,rate:5},
+    {id:"findik",ad:"Fındık",sys:95,markup:.22,rate:4}],
+  cities:[["İstanbul",20],["Kocaeli",110],["Bursa",243],["Eskişehir",325],["Ankara",453],["İzmir",480],["Konya",660],["Nevşehir",730],["Samsun",735],["Mersin",932],["Adana",940],["Trabzon",1070],["Gaziantep",1140]],
+  sellers:["Yıldız Gıda","Akçay Toptan","Demirci Ticaret","Bereket Pazarlama","Öztürk Kardeşler","Anadolu Dağıtım","Karaca Gıda","Marmara Toptan","Güneş Ticaret","Sarıkaya Gıda","Poyraz Dağıtım","Toros Pazarlama"]
+};
+const P={};CONFIG.products.forEach(p=>P[p.id]=p);
+let seed=Date.now()%2147483647;
+function rnd(){seed=seed*48271%2147483647;return seed/2147483647}
+const rr=(a,b)=>a+rnd()*(b-a), ri=(a,b)=>Math.floor(rr(a,b+1)), pick=a=>a[Math.floor(rnd()*a.length)];
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const tl=(x,d)=>x.toLocaleString("tr-TR",{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d});
+let S, lid=1;
+
+/* ---- Motor ---- */
+function newGame(){
+  S={cash:CONFIG.startCash,t:0,day:1,slots:1,shelves:[null],stock:{},acc:{},feed:[],listings:{},
+     market:{state:"sakin",nextAt:CONFIG.marketSec,mult:{},hist:{}},churnAt:CONFIG.churnSec,
+     d:{rev:0,buy:0,sold:0},won:false,dead:false,speed:1,tab:"shop",sel:"makarna",first:true};
+  CONFIG.products.forEach(p=>{S.stock[p.id]={q:0,qual:0,cost:0};S.acc[p.id]=0;S.market.mult[p.id]=1;S.market.hist[p.id]=[p.sys];S.listings[p.id]=[];
+    const n=ri(5,6);for(let i=0;i<n;i++)S.listings[p.id].push(genListing(p.id))});
+}
+const sysPrice=id=>P[id].sys*S.market.mult[id];
+const refPrice=id=>sysPrice(id)*(1+P[id].markup);
+function genListing(id){
+  const q=ri(20,85), c=pick(CONFIG.cities);
+  let d=.30-(q-20)/65*.18+rr(-.06,.06), kelepir=rnd()<.12;
+  if(kelepir)d+=rr(.08,.14);
+  return{id:lid++,pid:id,seller:pick(CONFIG.sellers),city:c[0],km:c[1],q:q,qty:ri(6,40)*10,price:+(sysPrice(id)*(1-d)).toFixed(2),kelepir};
+}
+const ship=l=>+(l.km*CONFIG.shipPerKm).toFixed(2);
+const net=l=>+(l.price+ship(l)).toFixed(2);
+const sysListing=id=>({id:0,pid:id,seller:"Sistem Toptancısı",city:"İstanbul",km:20,q:50,qty:Infinity,price:+sysPrice(id).toFixed(2),sys:true});
+function allListings(id){return S.listings[id].slice().sort((a,b)=>net(a)-net(b)).concat([sysListing(id)])}
+const depotUsed=()=>CONFIG.products.reduce((s,p)=>s+S.stock[p.id].q,0);
+const priceMult=r=>clamp(1+(1-r)*3,.6,1.6);
+const qualMult=q=>q>=70?1.4:q>=40?.9+(q-40)/30*.2:.8;
+function shelfRate(sh){if(!sh)return 0;const st=S.stock[sh.pid];return P[sh.pid].rate*CONFIG.rateScale*priceMult(sh.price/refPrice(sh.pid))*qualMult(st.qual)}
+function profitPerMin(){return S.shelves.reduce((s,sh)=>s+(sh&&S.stock[sh.pid].q>0?shelfRate(sh)*(sh.price-S.stock[sh.pid].cost):0),0)}
+function maxBuy(l){return Math.max(0,Math.min(l.qty,Math.floor(S.cash/net(l)),CONFIG.depot-depotUsed()))}
+function buy(l,qty){
+  qty=Math.min(qty,maxBuy(l));if(qty<=0)return 0;
+  const st=S.stock[l.pid],cost=qty*net(l);
+  st.qual=(st.qual*st.q+l.q*qty)/(st.q+qty);st.cost=(st.cost*st.q+cost)/(st.q+qty);st.q+=qty;
+  S.cash-=cost;S.d.buy+=cost;
+  if(!l.sys){l.qty-=qty;if(l.qty<=0)S.listings[l.pid]=S.listings[l.pid].filter(x=>x!==l)}
+  if(!S.shelves.some(s=>s&&s.pid===l.pid)){const i=S.shelves.findIndex(s=>!s||S.stock[s.pid].q<=0&&s.pid!==l.pid);if(i>=0)S.shelves[i]={pid:l.pid,price:roundP(refPrice(l.pid))}}
+  S.first=false;return qty;
+}
+const roundP=x=>Math.round(x*20)/20;
+function marketUpdate(){
+  const keys=Object.keys(CONFIG.states).filter(k=>k!==S.market.state||rnd()<.25);
+  S.market.state=pick(keys);const m=CONFIG.states[S.market.state].m;
+  CONFIG.products.forEach(p=>{S.market.mult[p.id]=m*(1+rr(-.04,.04));const h=S.market.hist[p.id];h.push(+sysPrice(p.id).toFixed(2));if(h.length>10)h.shift();
+    S.listings[p.id]=S.listings[p.id].filter(()=>rnd()<.5);while(S.listings[p.id].length<4)S.listings[p.id].push(genListing(p.id))});
+  S.market.nextAt=S.t+CONFIG.marketSec;
+  ev("market");
+}
+function churn(){
+  CONFIG.products.forEach(p=>{const L=S.listings[p.id];
+    if(L.length&&rnd()<.5){const l=L.slice().sort((a,b)=>net(a)-net(b))[0];l.qty-=ri(2,12)*10;if(l.qty<=0)S.listings[p.id]=L.filter(x=>x!==l)}
+    if(S.listings[p.id].length<7&&rnd()<.45)S.listings[p.id].push(genListing(p.id))});
+  ev("listings");
+}
+function endDay(){
+  S.cash-=CONFIG.rent;
+  ev("day",{day:S.day,rev:S.d.rev,buy:S.d.buy,sold:S.d.sold});
+  S.day++;S.d={rev:0,buy:0,sold:0};
+  if(S.cash<0&&depotUsed()===0){S.dead=true;ev("dead")}
+}
+function step(dt){
+  if(S.dead)return;
+  S.t+=dt;
+  S.shelves.forEach(sh=>{if(!sh)return;const st=S.stock[sh.pid];if(st.q<=0)return;
+    S.acc[sh.pid]+=shelfRate(sh)*dt/60;const n=Math.min(st.q,Math.floor(S.acc[sh.pid]));
+    if(n>0){S.acc[sh.pid]-=n;st.q-=n;const r=n*sh.price;S.cash+=r;S.d.rev+=r;S.d.sold+=n;ev("sale",{pid:sh.pid,n,r});if(st.q===0){S.acc[sh.pid]=0;ev("empty",{pid:sh.pid})}}});
+  while(S.t>=S.churnAt){S.churnAt+=CONFIG.churnSec;churn()}
+  while(S.t>=S.market.nextAt)marketUpdate();
+  while(S.t>=S.day*CONFIG.daySec&&!S.dead)endDay();
+}
+let onEv=()=>{};function ev(k,d){onEv(k,d)}
+
+/* ---- Arayüz ---- */
+const $=id=>document.getElementById(id);
+let dirty=true,pend={},sheetL=null,sheetQ=0,toastT;
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2600)}
+onEv=(k,d)=>{
+  if(k==="sale"){const p=pend[d.pid]||(pend[d.pid]={n:0,r:0});p.n+=d.n;p.r+=d.r}
+  else if(k==="market"){const s=S.market.state;toast("Piyasa güncellendi: "+CONFIG.states[s].ad+(s==="canli"?". Fiyatlar yükseldi.":s==="kotu"?". Fiyatlar düştü.":"."));dirty=true}
+  else if(k==="listings"){if(S.tab==="market"&&!sheetL)dirty=true}
+  else if(k==="empty"){toast(P[d.pid].ad+" bitti. Raf boş.");dirty=true}
+  else if(k==="day"){S.feed.unshift({t:d.day+". gün kapandı: "+d.sold+" satış, kira",v:-CONFIG.rent});dirty=true}
+  else if(k==="dead"){openEnd(false)}
+};
+function flushFeed(){let ch=false;for(const id in pend){const p=pend[id];S.feed.unshift({t:p.n+" × "+P[id].ad,v:p.r,nw:1});ch=true}pend={};if(S.feed.length>12)S.feed.length=12;
+  if(ch&&S.tab==="shop"){const f=$("feed");if(f)f.innerHTML=feedHtml()}S.feed.forEach(x=>x.nw=0)}
+const feedHtml=()=>S.feed.length?S.feed.map(x=>`<div class="${x.nw?"new":""}"><span>${x.t}</span><b class="num ${x.v<0?"dn":"up"}">${x.v<0?"−":"+"}${tl(Math.abs(x.v))} TL</b></div>`).join(""):`<div><span class="sub">Henüz satış yok.</span></div>`;
+function qTag(q){return `<span class="tag q ${q>=70?"hi":""}">%${Math.round(q)} kalite</span>`}
+function spark(id){const h=S.market.hist[id];if(h.length<2)return"";const mn=Math.min(...h),mx=Math.max(...h),w=300,H=38;
+  const pts=h.map((v,i)=>(i/(h.length-1)*w).toFixed(1)+","+(H-4-(mx===mn?.5:(v-mn)/(mx-mn))*(H-8)).toFixed(1)).join(" ");
+  return `<svg class="sp" viewBox="0 0 ${w} ${H}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#17794a" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`}
+function renderShop(){
+  let h=`<div class="card"><div class="row"><div><h2>Bakkal</h2><div class="sub">İstanbul · ${S.slots} raf</div></div><div style="text-align:right"><b class="num" id="depoN">${depotUsed()}</b><span class="sub"> / ${CONFIG.depot} birim</span></div></div><div class="depo"><i id="depoB" style="width:${depotUsed()/CONFIG.depot*100}%"></i></div></div>`;
+  if(S.first)h+=`<div class="card hint"><b>Rafın boş.</b><div class="sub" style="color:inherit;margin:4px 0 12px">Pazardan mal al. Aldığın mal anında depoya girer ve satılmaya başlar.</div><button class="btn full" data-a="tab" data-v="market">Pazara git</button></div>`;
+  S.shelves.forEach((sh,i)=>{
+    if(!sh){h+=`<div class="card"><div class="row"><div><h2>${i+1}. raf</h2><div class="sub">Boş. Pazardan aldığın yeni ürün buraya yerleşir.</div></div><button class="btn ghost" data-a="tab" data-v="market">Pazar</button></div></div>`;return}
+    const st=S.stock[sh.pid],ref=refPrice(sh.pid),r=sh.price/ref,rate=st.q>0?shelfRate(sh):0,diff=(r-1)*100;
+    h+=`<div class="card"><div class="row"><div><h2>${P[sh.pid].ad}</h2><div class="sub">${i+1}. raf</div></div><div>${st.q>0?qTag(st.qual):`<span class="tag k">Stok yok</span>`}</div></div>
+    <div class="kv"><div><b class="num" id="q-${sh.pid}">${st.q}</b><span>stok</span></div><div><b class="num">${tl(rate,1)}/dk</b><span>satış hızı</span></div><div><b class="num ${sh.price>=st.cost?"up":"dn"}">${st.q>0?(rate*(sh.price-st.cost)>=0?"+":"−")+tl(Math.abs(rate*(sh.price-st.cost)),0):"0"} TL/dk</b><span>kâr</span></div></div>
+    <div class="price"><button class="step" data-a="price" data-i="${i}" data-v="-1" aria-label="Fiyatı azalt">−</button><div class="pmid"><b class="num">${tl(sh.price)} TL</b><div class="sub num">piyasa ${tl(ref)} · <span class="${diff>0.5?"dn":diff<-0.5?"up":""}">${diff>=0?"+":"−"}%${tl(Math.abs(diff),0)}</span> · maliyet ${tl(st.cost)}</div></div><button class="step" data-a="price" data-i="${i}" data-v="1" aria-label="Fiyatı artır">+</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-a="swap" data-i="${i}">Ürünü değiştir</button><button class="btn g" style="flex:1" data-a="goto" data-v="${sh.pid}">Mal al</button></div></div>`});
+  if(S.slots<CONFIG.slotCosts.length){const c=CONFIG.slotCosts[S.slots];h+=`<div class="card goal"><div class="row"><div><h2>${S.slots+1}. rafı aç</h2><div class="sub">Yeni raf, ikinci bir ürünü aynı anda satar.</div></div><button class="btn" data-a="slot" ${S.cash<c?"disabled":""}>${tl(c,0)} TL</button></div><div class="depo"><i id="goalB" data-c="${c}" style="width:${clamp(S.cash/c*100,0,100)}%"></i></div></div>`}
+  else if(!S.won){const c=CONFIG.shop2Cost;h+=`<div class="card goal"><div class="row"><div><h2>İkinci dükkânı aç</h2><div class="sub">Bu dilimin hedefi.</div></div><button class="btn" data-a="shop2" ${S.cash<c?"disabled":""}>${tl(c,0)} TL</button></div><div class="depo"><i id="goalB" data-c="${c}" style="width:${clamp(S.cash/c*100,0,100)}%"></i></div></div>`}
+  h+=`<div class="card"><h2 style="margin-bottom:6px">Son satışlar</h2><div class="feed" id="feed">${feedHtml()}</div></div>`;
+  return h}
+function renderMarket(){
+  const id=S.sel,p=P[id],h0=S.market.hist[id],prev=h0.length>1?h0[h0.length-2]:h0[0],cur=sysPrice(id),ch=(cur/prev-1)*100,st=S.stock[id];
+  let h=`<div class="prods">`+CONFIG.products.map(x=>{const b=allListings(x.id)[0];return `<button class="${x.id===id?"on":""}" data-a="sel" data-v="${x.id}"><b>${x.ad}</b><span class="num">${tl(net(b))} TL</span></button>`}).join("")+`</div>`;
+  h+=`<div class="card"><div class="row"><div><h2>${p.ad}</h2><div class="sub num">Sistem fiyatı ${tl(cur)} TL <span class="${ch>0.5?"up":ch<-0.5?"dn":""}">${Math.abs(ch)<.5?"":(ch>0?"▲":"▼")+" %"+tl(Math.abs(ch),0)}</span></div></div><div style="text-align:right"><b class="num">${tl(refPrice(id))} TL</b><div class="sub">dükkânda satılır</div></div></div>${spark(id)}<div class="sub num">Depoda: ${st.q} birim${st.q?` · %${Math.round(st.qual)} kalite · ${tl(st.cost)} TL maliyet`:""} · temel hız ${p.rate}/dk</div></div>`;
+  allListings(id).forEach((l,i)=>{const mrg=(refPrice(id)/net(l)-1)*100;
+    h+=`<button class="lst ${l.sys?"sys":""}" data-a="open" data-v="${l.id}"><div class="row"><div><b>${l.seller}</b> ${i===0&&!l.sys?`<span class="tag best">En ucuz</span>`:""} ${l.kelepir?`<span class="tag k">Kelepir</span>`:""}<div class="sm">${l.city} · ${l.km} km · ${l.sys?"sınırsız":l.qty+" birim"}</div></div><div style="text-align:right"><div class="net num">${tl(net(l))} TL</div><div class="sm num">${tl(l.price)} + ${tl(ship(l))} nakliye</div></div></div><div class="row" style="margin-top:8px">${qTag(l.q)}<span class="sm num ${mrg>0?"up":"dn"}">piyasa fiyatına göre ${mrg>=0?"+":"−"}%${tl(Math.abs(mrg),0)} marj</span></div></button>`});
+  return h}
+function render(){
+  $("main").innerHTML=S.tab==="shop"?renderShop():renderMarket();
+  $("t-shop").className=S.tab==="shop"?"on":"";$("t-market").className=S.tab==="market"?"on":"";dirty=false;tickUI()}
+function tickUI(){
+  const c=$("cash");c.textContent=tl(S.cash,S.cash<10000?2:0)+" TL";c.className="num"+(S.cash<0?" neg":"");
+  const pm=profitPerMin();$("ppm").textContent=(pm>=0?"+":"−")+tl(Math.abs(pm),0)+" TL/dk";$("day").textContent=S.day+". gün";
+  const m=$("mst");m.textContent=CONFIG.states[S.market.state].ad;m.className="chip st-"+S.market.state;
+  const left=Math.max(0,S.market.nextAt-S.t);$("mcd").textContent=Math.floor(left/60)+":"+String(Math.floor(left%60)).padStart(2,"0");$("mbar").style.width=(100-left/CONFIG.marketSec*100)+"%";
+  $("spd").textContent=S.speed+"×";
+  if(S.tab==="shop"){const d=depotUsed(),n=$("depoN");if(n){n.textContent=d;$("depoB").style.width=d/CONFIG.depot*100+"%"}
+    S.shelves.forEach(sh=>{if(sh){const e=$("q-"+sh.pid);if(e)e.textContent=S.stock[sh.pid].q}});
+    const g=$("goalB");if(g){const c=+g.dataset.c;g.style.width=clamp(S.cash/c*100,0,100)+"%";const b=g.closest(".card").querySelector(".btn");if(b.disabled!==(S.cash<c))dirty=true}}
+}
+/* ---- Alt sayfalar ---- */
+function openSheet(html){$("sheet").innerHTML=html;$("sheetbg").classList.add("on")}
+function closeSheet(){$("sheetbg").classList.remove("on");sheetL=null;dirty=true}
+function findL(v){return v==="0"||v===0?sysListing(S.sel):S.listings[S.sel].find(l=>l.id==v)}
+function buyCalc(){const l=sheetL,st=S.stock[l.pid],nq=st.q+sheetQ,nqual=nq?(st.qual*st.q+l.q*sheetQ)/nq:0,ncost=nq?(st.cost*st.q+net(l)*sheetQ)/nq:0,pr=refPrice(l.pid)-ncost;
+  $("sq").textContent=sheetQ+" birim";$("stot").textContent=tl(sheetQ*net(l))+" TL";$("savg").textContent="%"+Math.round(nqual)+" kalite · "+tl(ncost)+" TL";
+  const e=$("sprof");e.textContent="birim başı "+tl(pr)+" TL";e.className=pr>0?"up":"dn";$("sbuy").textContent=sheetQ+" birim al";$("qr").value=sheetQ}
+function buySheet(){
+  const l=sheetL,mx=maxBuy(l);sheetQ=clamp(sheetQ,mx>0?1:0,mx);
+  const why=mx>0?"":S.cash<net(l)?"Kasada yeterli para yok.":CONFIG.depot-depotUsed()<=0?"Depo dolu.":"";
+  openSheet(`<div class="row"><div><h2>${P[l.pid].ad}</h2><div class="sub">${l.seller} · ${l.city} (${l.km} km)</div></div>${qTag(l.q)}</div>
+  <table class="tbl num"><tr><td>Birim fiyat</td><td>${tl(l.price)} TL</td></tr><tr><td>Nakliye</td><td>${tl(ship(l))} TL</td></tr><tr><td>Net fiyat</td><td class="up">${tl(net(l))} TL</td></tr></table>
+  ${mx>0?`<div class="row"><b>Miktar</b><b class="num" style="font-size:20px" id="sq"></b></div><input type="range" id="qr" min="1" max="${mx}" value="${sheetQ}">
+  <div class="qk"><button data-a="qk" data-v=".25">%25</button><button data-a="qk" data-v=".5">%50</button><button data-a="qk" data-v="1">En fazla (${mx})</button></div>
+  <table class="tbl num"><tr><td>Toplam</td><td id="stot"></td></tr><tr><td>Depoda yeni ortalama</td><td id="savg"></td></tr><tr><td>Piyasa fiyatından satarsan</td><td id="sprof"></td></tr></table>
+  <button class="btn g full" data-a="buy" id="sbuy"></button>`:`<div class="card hint">${why}</div><button class="btn ghost full" data-a="close">Kapat</button>`}`);
+  const r=$("qr");if(r){r.oninput=()=>{sheetQ=+r.value;buyCalc()};buyCalc()}}
+function swapSheet(i){const have=CONFIG.products.filter(p=>S.stock[p.id].q>0&&!S.shelves.some(s=>s&&s.pid===p.id));
+  openSheet(`<h2 style="margin-bottom:10px">${i+1}. rafta ne satılsın?</h2>`+(have.length?have.map(p=>`<button class="lst" data-a="setp" data-i="${i}" data-v="${p.id}"><div class="row"><b>${p.ad}</b><span class="sm num">${S.stock[p.id].q} birim · %${Math.round(S.stock[p.id].qual)}</span></div></button>`).join(""):`<div class="sub" style="margin-bottom:12px">Depoda rafta olmayan başka ürün yok. Önce pazardan al.</div>`)+`<button class="btn ghost full" data-a="close">Kapat</button>`)}
+function settingsSheet(){const r=(k,a,b,s,lab)=>`<div class="row" style="margin-top:10px"><span>${lab}</span><b class="num" id="v-${k}">${CONFIG[k]}</b></div><input type="range" data-k="${k}" min="${a}" max="${b}" step="${s}" value="${CONFIG[k]}">`;
+  openSheet(`<h2>Ayar paneli</h2><div class="sub">Denge değerleri. Değişiklik anında uygulanır.</div>${r("marketSec",30,1200,30,"Piyasa güncelleme aralığı (sn)")}${r("rateScale",.5,3,.1,"Satış hızı çarpanı")}${r("rent",0,600,10,"Günlük kira (TL)")}${r("daySec",60,600,30,"Bir günün süresi (sn)")}${r("shipPerKm",0,.02,.001,"Nakliye (TL/km)")}
+  <div class="row" style="margin-top:14px"><button class="btn ghost" style="flex:1" data-a="reset">Oyunu sıfırla</button><button class="btn" style="flex:1" data-a="close">Tamam</button></div>`);
+  $("sheet").querySelectorAll("input").forEach(i=>i.oninput=()=>{CONFIG[i.dataset.k]=+i.value;$("v-"+i.dataset.k).textContent=i.value})}
+function openEnd(win){const min=Math.round(S.t/60);S.speed=1;
+  openSheet(win?`<h2>İkinci dükkânı açtın.</h2><p>Dilimin hedefi tamam: ${S.day}. günde, ${min} oyun dakikasında. Oynamaya devam edebilirsin.</p><button class="btn full" data-a="close">Devam et</button>`
+  :`<h2>İflas ettin.</h2><p>Kasa ekside ve depoda satacak mal kalmadı (${S.day-1}. gün).</p><button class="btn full" data-a="reset">Yeniden başla</button>`)}
+/* ---- Dokunma ---- */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,v=b.dataset.v,i=+b.dataset.i;
+  if(a==="closebg"){if(e.target===b&&!S.dead)closeSheet();return}
+  if(a==="tab"){S.tab=v;$("main").scrollTop=0}
+  else if(a==="sel")S.sel=v;
+  else if(a==="goto"){S.tab="market";S.sel=v;$("main").scrollTop=0}
+  else if(a==="speed")S.speed=S.speed===1?3:S.speed===3?10:1;
+  else if(a==="price"){const sh=S.shelves[i],ref=refPrice(sh.pid),stp=Math.max(.05,roundP(ref*.02));sh.price=clamp(roundP(sh.price+stp*v),roundP(ref*.7),roundP(ref*1.3))}
+  else if(a==="open"){const l=findL(v);if(!l){toast("Bu ilan az önce tükendi.");dirty=true;return}sheetL=l;sheetQ=Math.ceil(maxBuy(l)/2);buySheet();return}
+  else if(a==="qk"){sheetQ=Math.max(1,Math.floor(maxBuy(sheetL)*v));buyCalc();return}
+  else if(a==="buy"){const l=sheetL;if(!l.sys&&!S.listings[l.pid].includes(l)){toast("Bu ilan az önce tükendi.");closeSheet();return}
+    const n=buy(l,sheetQ);closeSheet();if(n){toast(n+" birim "+P[l.pid].ad+" depoya girdi.");S.tab="shop";$("main").scrollTop=0}}
+  else if(a==="swap"){swapSheet(i);return}
+  else if(a==="setp"){S.shelves[i]={pid:v,price:roundP(refPrice(v))};closeSheet()}
+  else if(a==="slot"){const c=CONFIG.slotCosts[S.slots];if(S.cash>=c){S.cash-=c;S.slots++;S.shelves.push(null);toast(S.slots+". raf açıldı.")}}
+  else if(a==="shop2"){if(S.cash>=CONFIG.shop2Cost){S.cash-=CONFIG.shop2Cost;S.won=true;save();openEnd(true);return}}
+  else if(a==="settings"){settingsSheet();return}
+  else if(a==="reset"){newGame();closeSheet();save()}
+  else if(a==="close"){closeSheet()}
+  dirty=true;render()});
+/* ---- Kayıt ve döngü ---- */
+function save(){try{localStorage.setItem("kervan-dp1",JSON.stringify({S,lid}))}catch(e){}}
+function load(){try{const j=JSON.parse(localStorage.getItem("kervan-dp1"));if(j&&j.S&&j.S.market&&!j.S.dead){S=j.S;lid=j.lid;CONFIG.products.forEach(p=>S.listings[p.id].forEach(l=>{if(l.qty==null)l.qty=100}));return true}}catch(e){}return false}
+if(!load())newGame();
+render();
+let fc=0;
+if(!/[?&]sim/.test(location.search))setInterval(()=>{step(.25*S.speed);if(++fc%4===0)flushFeed();if(fc%40===0)save();if(dirty&&!sheetL)render();else tickUI()},250);
+window.__k={get S(){return S},CONFIG,P,step,buy,allListings,net,refPrice,newGame,depotUsed,shelfRate,profitPerMin,seed:v=>{seed=v}};
+</script>
+</body>
+</html>
