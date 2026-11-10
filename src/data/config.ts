@@ -7,7 +7,7 @@ export const CONFIG = {
   rentScale: 1,
   shipPerKm: 0.004, // TL / km / birim
   churnSec: 12, // ilanların canlı değişim aralığı (sn)
-  xpBase: 1800, // seviye n için gereken toplam ciro: xpBase * (n-1)^xpPow
+  xpBase: 1400, // seviye n için gereken toplam ciro: xpBase * (n-1)^xpPow
   xpPow: 2.2,
   loanRatio: 0.6, // kredi limiti = servet * oran
   interestDay: 0.02, // taban günlük faiz
@@ -37,10 +37,11 @@ export const CONFIG = {
     canli: { ad: "Canlı piyasa", m: 1.15 },
     kotu: { ad: "Kötü piyasa", m: 0.8 },
   },
+  // Büyütme açılıştan pahalıdır (costK x açılış bedeli) ama kira her kademede yalnızca 1,5 kat artar: büyümenin ödülü kira verimidir.
   sizes: [
     { ad: "Küçük", shelves: 1, depot: 1200, rent: 60, costK: 0, offers: 1 },
-    { ad: "Orta", shelves: 3, depot: 3000, rent: 300, costK: 0.6, offers: 2 },
-    { ad: "Büyük", shelves: 6, depot: 6000, rent: 700, costK: 3, offers: 3 },
+    { ad: "Orta", shelves: 2, depot: 3000, rent: 90, costK: 1.2, offers: 2 },
+    { ad: "Büyük", shelves: 4, depot: 7500, rent: 135, costK: 3.6, offers: 3 },
   ],
 };
 export type MarketState = keyof typeof CONFIG.states;
