@@ -1,0 +1,3 @@
+// Toptancıların bulunduğu şehirler: [ad, İstanbul'a uzaklık km]. Satıcı adları kurgusaldır.
+export const CITIES: [string, number][] = [["İstanbul", 20], ["Kocaeli", 110], ["Bursa", 243], ["Eskişehir", 325], ["Ankara", 453], ["İzmir", 480], ["Konya", 660], ["Nevşehir", 730], ["Samsun", 735], ["Mersin", 932], ["Adana", 940], ["Trabzon", 1070], ["Gaziantep", 1140]];
+export const SELLERS = ["Yıldız Gıda", "Akçay Toptan", "Demirci Ticaret", "Bereket Pazarlama", "Öztürk Kardeşler", "Anadolu Dağıtım", "Karaca Gıda", "Marmara Toptan", "Güneş Ticaret", "Sarıkaya Gıda", "Poyraz Dağıtım", "Toros Pazarlama"];

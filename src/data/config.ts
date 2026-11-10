@@ -1,0 +1,25 @@
+// Denge değerlerinin tamamı burada. Oyun içindeki ayar paneli bu nesneyi canlı değiştirir.
+export const CONFIG = {
+  startCash: 3000,
+  daySec: 240, // bir oyun günü (sn)
+  marketSec: 150, // piyasa güncelleme aralığı (sn); gerçek oyunda hedef 1200
+  rateScale: 1,
+  rentScale: 1,
+  shipPerKm: 0.004, // TL / km / birim
+  churnSec: 12, // ilanların canlı değişim aralığı (sn)
+  xpBase: 1800, // seviye n için gereken toplam ciro: xpBase * (n-1)^xpPow
+  xpPow: 2.2,
+  loanRatio: 0.6, // kredi limiti = servet * oran
+  interestDay: 0.04, // günlük faiz
+  states: {
+    sakin: { ad: "Sakin piyasa", m: 1 },
+    canli: { ad: "Canlı piyasa", m: 1.12 },
+    kotu: { ad: "Kötü piyasa", m: 0.88 },
+  },
+  sizes: [
+    { ad: "Küçük", shelves: 1, depot: 1200, rent: 120, costK: 0 },
+    { ad: "Orta", shelves: 3, depot: 3000, rent: 300, costK: 0.6 },
+    { ad: "Büyük", shelves: 6, depot: 6000, rent: 700, costK: 3 },
+  ],
+};
+export type MarketState = keyof typeof CONFIG.states;

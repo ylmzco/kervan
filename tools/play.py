@@ -1,6 +1,6 @@
 import sys,json
 from playwright.sync_api import sync_playwright
-url='file://'+sys.argv[1]; out=sys.argv[2]
+url=sys.argv[1]; out=sys.argv[2]
 errs=[]
 with sync_playwright() as p:
     b=p.chromium.launch(executable_path='/usr/bin/google-chrome',args=['--no-sandbox'])

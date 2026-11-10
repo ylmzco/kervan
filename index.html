@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Kervan Dükkân ve Pazar</title>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="hrow">
+    <div><div class="lbl">Kasa</div><div id="cash" class="num">0</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div style="text-align:right;margin-right:4px"><div class="lbl" id="day">1. gün</div><div class="num" style="font-size:13px" id="ppm">+0 TL/dk</div></div>
+      <button class="hbtn" id="spd" data-a="speed">1×</button>
+      <button class="hbtn" data-a="settings">Ayar</button>
+    </div>
+  </div>
+  <div class="mk"><span class="chip" id="mst">Sakin piyasa</span><div class="bar"><i id="mbar"></i></div><span class="num" id="mcd">0:00</span></div>
+</header>
+<main id="main"></main>
+<nav><button data-a="tab" data-v="home" id="t-home">Ana sayfa</button><button data-a="tab" data-v="shop" id="t-shop">Dükkân</button><button data-a="tab" data-v="market" id="t-market">Pazar</button></nav>
+<div id="toast"></div>
+<div id="sheetbg" data-a="closebg"><div id="sheet"></div></div>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
