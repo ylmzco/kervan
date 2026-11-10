@@ -13,8 +13,8 @@ with sync_playwright() as p:
     pg.click('#spd'); pg.click('#spd'); pg.wait_for_timeout(6000)
     pg.click('[data-a=price][data-v="1"]'); pg.wait_for_timeout(300); pg.screenshot(path=out+'/4-dukkan.png')
     pg.click('[data-a=settings]'); pg.wait_for_timeout(200); pg.screenshot(path=out+'/5-ayar.png'); pg.click('[data-a=close]')
-    pg.click('#t-market'); pg.wait_for_timeout(200)
+    pg.click('#t-market'); pg.wait_for_timeout(200); pg.screenshot(path=out+'/6-pazar2.png'); pg.evaluate('()=>{const S=__k.S;S.cash=40000;S.xp=20000}'); pg.wait_for_timeout(600); pg.click('#t-home'); pg.wait_for_timeout(300); pg.click('[data-a=openshop]'); pg.wait_for_timeout(300); pg.click('.lst >> nth=0'); pg.click('#sbuy'); pg.wait_for_timeout(300); pg.click('[data-a=upgrade]'); pg.wait_for_timeout(300); pg.screenshot(path=out+'/7-manav.png'); pg.click('#t-home'); pg.wait_for_timeout(1500); pg.screenshot(path=out+'/8-ana.png',full_page=False)
     info=pg.evaluate('''()=>{const S=__k.S;const over=[...document.querySelectorAll("#app *")].filter(e=>{const r=e.getBoundingClientRect();return r.width&&(r.right>391||r.left<-1)&&!e.closest(".prods")}).length;
       const small=[...document.querySelectorAll("#app *")].filter(e=>e.children.length==0&&e.textContent.trim()&&parseFloat(getComputedStyle(e).fontSize)<11).length;
-      return {cash:S.cash,day:S.day,t:S.t,stock:S.stock,over,small,sw:document.documentElement.scrollWidth}}''')
+      return {cash:S.cash,day:S.day,level:S.level,shops:S.shops.map(s=>s.type+s.size+':'+s.shelves.length),over,small,sw:document.documentElement.scrollWidth}}''')
     print(json.dumps(info,ensure_ascii=False)); print('ERRORS',errs); b.close()
