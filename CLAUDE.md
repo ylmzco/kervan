@@ -8,6 +8,7 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 - `npm test` — motor testleri (vitest)
 - `npm run sim` — denge simülasyonu: iki bot, üç dünya, 5 oyun saati
 - `npm run check` — tip denetimi
+- `npm run smoke` — derler ve gerçek tarayıcıda akışı oynatır (Python + Playwright + Chrome ister)
 - `npm run build` — `dist/` üretir
 
 ## Yapı
@@ -22,7 +23,8 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 - `prototypes/` — ilk tek dosyalık prototip (arşiv, dokunma)
 
 ## Çalışma kuralları
-- Her oturumda tek özellik. Özellik bitince: `npm test`, `npm run sim`, sonra oyna, sonra commit.
+- Her oturumda tek özellik. Özellik bitince: `npm test`, `npm run sim`, `npm run smoke`, sonra oyna, sonra commit.
+- Yayınlamadan önce smoke testinin sonucunu gör; testle yayını aynı anda başlatma.
 - Denge değeri değişirse sim çıktısını öncekiyle karşılaştır ve farkı söyle.
 - Rakamlar `src/data/` içinde durur; motora ya da arayüze sayı gömme.
 - Oyun kuralı `engine.ts` içinde, gösterim `ui.ts` içinde. Arayüz kural hesaplamaz.
