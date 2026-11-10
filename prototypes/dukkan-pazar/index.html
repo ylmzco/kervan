@@ -99,9 +99,9 @@ svg.sp{display:block;width:100%;height:38px}
 "use strict";
 /* ---- Ayar değerleri: dengenin tamamı burada ---- */
 const CONFIG={
-  startCash:3000, daySec:240, marketSec:150, rateScale:1, rentScale:1, shipPerKm:0.004, churnSec:12, xpBase:2500, xpPow:2.2, loanRatio:.6, interestDay:.04,
+  startCash:3000, daySec:240, marketSec:150, rateScale:1, rentScale:1, shipPerKm:0.004, churnSec:12, xpBase:1800, xpPow:2.2, loanRatio:.6, interestDay:.04,
   states:{sakin:{ad:"Sakin piyasa",m:1},canli:{ad:"Canlı piyasa",m:1.12},kotu:{ad:"Kötü piyasa",m:0.88}},
-  sizes:[{ad:"Küçük",shelves:2,depot:1200,rent:120,costK:0},{ad:"Orta",shelves:4,depot:3000,rent:300,costK:.8},{ad:"Büyük",shelves:6,depot:6000,rent:700,costK:3}],
+  sizes:[{ad:"Küçük",shelves:1,depot:1200,rent:120,costK:0},{ad:"Orta",shelves:3,depot:3000,rent:300,costK:.6},{ad:"Büyük",shelves:6,depot:6000,rent:700,costK:3}],
   types:[
     {id:"bakkal",ad:"Bakkal",level:1,cost:3500,tier:1,products:[["makarna","Makarna",14],["un","Un",22],["seker","Şeker",36],["cay","Çay",42],["pirinc","Pirinç",48],["yag","Ayçiçek yağı",78]]},
     {id:"manav",ad:"Manav",level:3,cost:6000,tier:1.1,products:[["sogan","Soğan",12],["patates","Patates",16],["domates","Domates",28],["elma","Elma",34],["limon","Limon",40],["muz","Muz",62]]},
@@ -331,8 +331,8 @@ document.addEventListener("click",e=>{
   else if(a==="close"){closeSheet()}
   dirty=true;render()});
 /* ---- Kayıt ve döngü ---- */
-function save(){try{localStorage.setItem("kervan-dp3",JSON.stringify({S,lid}))}catch(e){}}
-function load(){try{const j=JSON.parse(localStorage.getItem("kervan-dp3"));if(j&&j.S&&j.S.shops&&!j.S.dead&&PIDS.every(id=>j.S.listings[id])){S=j.S;lid=j.lid;return true}}catch(e){}return false}
+function save(){try{localStorage.setItem("kervan-dp4",JSON.stringify({S,lid}))}catch(e){}}
+function load(){try{const j=JSON.parse(localStorage.getItem("kervan-dp4"));if(j&&j.S&&j.S.shops&&!j.S.dead&&PIDS.every(id=>j.S.listings[id])){S=j.S;lid=j.lid;return true}}catch(e){}return false}
 if(!load())newGame();
 render();
 let fc=0;
