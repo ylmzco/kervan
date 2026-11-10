@@ -6,7 +6,7 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 ## Komutlar
 - `npm run dev` — geliştirme sunucusu (telefondan aynı ağda açılabilir)
 - `npm test` — motor testleri (vitest)
-- `npm run sim` — denge simülasyonu: iki bot, üç dünya, 5 oyun saati
+- `npm run sim` — denge simülasyonu: üç bot (kredisiz, ölçülü, açgözlü), üç dünya, 5 oyun saati
 - `npm run check` — tip denetimi
 - `npm run smoke` — derler ve gerçek tarayıcıda akışı oynatır (Python + Playwright + Chrome ister)
 - `npm run build` — `dist/` üretir
@@ -39,5 +39,5 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 
 ## Bilinen borç
 - `src/ui.ts` prototipten olduğu gibi taşındı, `@ts-nocheck` ile tip denetimi dışında. Ekranlar yeniden tasarlanırken parçalara ayrılıp tiplenecek.
-- Kredi neredeyse risksiz: limitini hep sonuna kadar kullanan bot iflas etmiyor ve en hızlı büyüyor.
+- Aşırı borçlanma iflasa değil yerinde saymaya yol açıyor: limitini hep sonuna kadar kullanan bot batmıyor ama büyüyemiyor. İflasın gerçek bir tehdit olup olmayacağı oynayarak karar verilecek.
 - Her türden tek dükkân, tek il (İstanbul).

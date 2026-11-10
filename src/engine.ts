@@ -15,7 +15,7 @@ export interface State {
   shops: Shop[]; cur: number; sel: Record<string, string>; feed: FeedItem[];
   listings: Record<string, Listing[]>;
   market: { state: MarketState; nextAt: number; mult: Record<string, number>; hist: Record<string, number[]> };
-  churnAt: number; d: { rev: number; buy: number; sold: number };
+  churnAt: number; d: { rev: number; buy: number; sold: number; cogs: number };
   dead: boolean; speed: number; tab: "home" | "shop" | "market"; first: boolean;
 }
 export type Ev = "sale" | "market" | "listings" | "empty" | "level" | "day" | "dead";
@@ -57,7 +57,7 @@ function mkShop(type: string): Shop {
 }
 export function newGame() {
   S = { cash: CONFIG.startCash, debt: 0, t: 0, day: 1, xp: 0, level: 1, shops: [mkShop("bakkal")], cur: 0, sel: {}, feed: [], listings: {},
-    market: { state: "sakin", nextAt: CONFIG.marketSec, mult: {}, hist: {} }, churnAt: CONFIG.churnSec, d: { rev: 0, buy: 0, sold: 0 }, dead: false, speed: 1, tab: "home", first: true };
+    market: { state: "sakin", nextAt: CONFIG.marketSec, mult: {}, hist: {} }, churnAt: CONFIG.churnSec, d: { rev: 0, buy: 0, sold: 0, cogs: 0 }, dead: false, speed: 1, tab: "home", first: true };
   TYPES.forEach((t) => (S.sel[t.id] = t.products[0][0]));
   PIDS.forEach((id) => {
     S.market.mult[id] = 1; S.market.hist[id] = [P[id].sys]; S.listings[id] = [];
@@ -129,6 +129,25 @@ export const loanLimit = () => Math.floor((assets() * CONFIG.loanRatio) / 100) *
 export function borrow(x: number) { x = Math.min(x, loanLimit() - S.debt); if (x <= 0) return 0; S.debt += x; S.cash += x; return x; }
 export function repay(x: number) { x = Math.min(x, S.debt, Math.max(0, S.cash)); if (x <= 0) return 0; S.debt -= x; S.cash -= x; return x; }
 
+/** Günlük faiz oranı: borcun limite oranı arttıkça kademeli yükselir. */
+export function interestRate(debt: number = S.debt) {
+  const lim = loanLimit(), u = lim > 0 ? debt / lim : debt > 0 ? 9 : 0;
+  let k = 1;
+  for (const s of CONFIG.interestSteps) if (u >= s.from) k = s.k;
+  return CONFIG.interestDay * k;
+}
+
+// ---- Devlet ----
+/** Dilimli vergi: her dilim yalnızca kendi aralığındaki kâra uygulanır. */
+export function taxFor(profit: number) {
+  let tax = 0, lo = 0;
+  for (const b of CONFIG.taxBrackets) { if (profit > lo) tax += (Math.min(profit, b.upTo) - lo) * b.rate; lo = b.upTo; }
+  return tax;
+}
+export const rentTotal = () => S.shops.reduce((s, sh) => s + shopRent(sh), 0);
+/** Günün şu ana kadarki kârı: ciro - satılan malın maliyeti - kira - faiz. */
+export const dayProfit = () => S.d.rev - (S.d.cogs || 0) - rentTotal() - S.debt * interestRate();
+
 // ---- Zaman ----
 function marketUpdate() {
   const keys = (Object.keys(CONFIG.states) as MarketState[]).filter((k) => k !== S.market.state || rnd() < 0.25);
@@ -152,10 +171,11 @@ function churn() {
   ev("listings");
 }
 function endDay() {
-  const rent = S.shops.reduce((s, sh) => s + shopRent(sh), 0) + S.debt * CONFIG.interestDay;
-  S.cash -= rent;
-  ev("day", { day: S.day, sold: S.d.sold, rent });
-  S.day++; S.d = { rev: 0, buy: 0, sold: 0 };
+  const rent = rentTotal(), interest = S.debt * interestRate(), tax = taxFor(Math.max(0, dayProfit()));
+  const total = rent + interest + tax;
+  S.cash -= total;
+  ev("day", { day: S.day, sold: S.d.sold, rent, interest, tax, total });
+  S.day++; S.d = { rev: 0, buy: 0, sold: 0, cogs: 0 };
   if (S.cash < 0 && S.shops.every((sh) => depotUsed(sh) === 0)) { S.dead = true; ev("dead"); }
 }
 /** Oyunu dt saniye ilerletir. */
@@ -171,7 +191,7 @@ export function step(dt: number) {
     if (n > 0) {
       sh.acc[sf.pid] -= n; st.q -= n;
       const r = n * sf.price;
-      S.cash += r; S.xp += r; S.d.rev += r; S.d.sold += n;
+      S.cash += r; S.xp += r; S.d.rev += r; S.d.sold += n; S.d.cogs = (S.d.cogs || 0) + n * st.cost;
       ev("sale", { pid: sf.pid, n, r, si });
       if (st.q === 0) { sh.acc[sf.pid] = 0; ev("empty", { pid: sf.pid }); }
     }

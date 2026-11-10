@@ -45,9 +45,29 @@ describe("banka", () => {
     expect(k.repay(1e9)).toBe(lim); expect(k.S.debt).toBe(0);
   });
   it("faiz gün sonunda kesilir", () => {
-    k.borrow(2000); const before = k.S.cash;
+    k.borrow(1000); const before = k.S.cash; // limitin yarısının altı: taban oran
     k.step(CONFIG.daySec);
-    expect(k.S.cash).toBeCloseTo(before - CONFIG.sizes[0].rent - 2000 * CONFIG.interestDay);
+    expect(k.S.cash).toBeCloseTo(before - CONFIG.sizes[0].rent - 1000 * CONFIG.interestDay);
+  });
+  it("borç limite yaklaştıkça faiz kademeli artar", () => {
+    const lim = k.loanLimit();
+    expect(k.interestRate(lim * 0.4)).toBeCloseTo(CONFIG.interestDay);
+    expect(k.interestRate(lim * 0.6)).toBeCloseTo(CONFIG.interestDay * 1.5);
+    expect(k.interestRate(lim * 0.9)).toBeCloseTo(CONFIG.interestDay * 2.25);
+    expect(k.interestRate(lim * 1.2)).toBeCloseTo(CONFIG.interestDay * 3);
+  });
+});
+
+describe("devlet", () => {
+  it("vergi dilimlidir: her oran yalnızca kendi dilimine uygulanır", () => {
+    expect(k.taxFor(800)).toBe(0);
+    expect(k.taxFor(3000)).toBeCloseTo(200); // (3000-1000) x %10
+    expect(k.taxFor(10000)).toBeCloseTo(400 + 1000); // 4000 x %10 + 5000 x %20
+    expect(k.taxFor(30000)).toBeCloseTo(400 + 3000 + 3000);
+  });
+  it("zarar eden günde vergi kesilmez", () => {
+    const before = k.S.cash; k.step(CONFIG.daySec);
+    expect(k.S.cash).toBeCloseTo(before - CONFIG.sizes[0].rent);
   });
 });
 

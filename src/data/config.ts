@@ -10,11 +10,24 @@ export const CONFIG = {
   xpBase: 1800, // seviye n için gereken toplam ciro: xpBase * (n-1)^xpPow
   xpPow: 2.2,
   loanRatio: 0.6, // kredi limiti = servet * oran
-  interestDay: 0.04, // günlük faiz
+  interestDay: 0.04, // taban günlük faiz
+  // Borç / limit oranı eşiği geçtikçe faiz çarpanı büyür. Limit aşılırsa cezai oran uygulanır.
+  interestSteps: [
+    { from: 0.5, k: 1.5 },
+    { from: 0.8, k: 2.25 },
+    { from: 1.0001, k: 3 },
+  ],
+  // Günlük kâr üzerinden dilimli vergi (her dilim yalnızca kendi aralığına uygulanır).
+  taxBrackets: [
+    { upTo: 1000, rate: 0 },
+    { upTo: 5000, rate: 0.1 },
+    { upTo: 20000, rate: 0.2 },
+    { upTo: Infinity, rate: 0.3 },
+  ],
   states: {
     sakin: { ad: "Sakin piyasa", m: 1 },
-    canli: { ad: "Canlı piyasa", m: 1.12 },
-    kotu: { ad: "Kötü piyasa", m: 0.88 },
+    canli: { ad: "Canlı piyasa", m: 1.15 },
+    kotu: { ad: "Kötü piyasa", m: 0.8 },
   },
   sizes: [
     { ad: "Küçük", shelves: 1, depot: 1200, rent: 120, costK: 0 },
