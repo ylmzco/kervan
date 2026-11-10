@@ -10,13 +10,18 @@ export const CONFIG = {
   xpBase: 1800, // seviye n için gereken toplam ciro: xpBase * (n-1)^xpPow
   xpPow: 2.2,
   loanRatio: 0.6, // kredi limiti = servet * oran
-  interestDay: 0.04, // taban günlük faiz
+  interestDay: 0.02, // taban günlük faiz
   // Borç / limit oranı eşiği geçtikçe faiz çarpanı büyür. Limit aşılırsa cezai oran uygulanır.
   interestSteps: [
     { from: 0.5, k: 1.5 },
     { from: 0.8, k: 2.25 },
-    { from: 1.0001, k: 3 },
+    { from: 1.0001, k: 4 },
   ],
+  // Malı sistem toptancısına geri satış: çıkış yoludur, kâr yolu değil.
+  // Birim fiyat = sistem fiyatı x (taban + kalite payı), ama hiçbir zaman maliyetin sellBackMaxCost katını geçmez.
+  sellBackBase: 0.35,
+  sellBackQual: 0.35,
+  sellBackMaxCost: 0.9,
   // Günlük kâr üzerinden dilimli vergi (her dilim yalnızca kendi aralığına uygulanır).
   taxBrackets: [
     { upTo: 1000, rate: 0 },
@@ -30,7 +35,7 @@ export const CONFIG = {
     kotu: { ad: "Kötü piyasa", m: 0.8 },
   },
   sizes: [
-    { ad: "Küçük", shelves: 1, depot: 1200, rent: 120, costK: 0 },
+    { ad: "Küçük", shelves: 1, depot: 1200, rent: 60, costK: 0 },
     { ad: "Orta", shelves: 3, depot: 3000, rent: 300, costK: 0.6 },
     { ad: "Büyük", shelves: 6, depot: 6000, rent: 700, costK: 3 },
   ],

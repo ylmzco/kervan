@@ -123,6 +123,23 @@ export function buy(l: Listing, qty: number) {
 export function upgrade(sh: Shop) { const c = upCost(sh); if (c == null || S.cash < c) return false; S.cash -= c; sh.val += c; sh.size++; fitShelves(sh); return true; }
 export function openShop(type: string) { const t = T[type]; if (S.level < t.level || S.cash < t.cost || S.shops.some((s) => s.type === type)) return false; S.cash -= t.cost; S.shops.push(mkShop(type)); return true; }
 
+/** Sistem toptancısının geri alım fiyatı. Her zaman maliyetin altındadır. */
+export function sellBackPrice(sh: Shop, pid: string) {
+  const st = sh.stock[pid];
+  return +Math.min(sysPrice(pid) * (CONFIG.sellBackBase + (CONFIG.sellBackQual * st.qual) / 100), st.cost * CONFIG.sellBackMaxCost).toFixed(2);
+}
+/** Depodaki malı zararına nakde çevirir. Seviye puanı kazandırmaz. */
+export function sellBack(sh: Shop, pid: string, qty: number) {
+  const st = sh.stock[pid];
+  qty = Math.min(qty, st.q);
+  if (qty <= 0) return 0;
+  const r = qty * sellBackPrice(sh, pid);
+  S.d.cogs = (S.d.cogs || 0) + qty * st.cost;
+  st.q -= qty; S.cash += r; S.d.rev += r;
+  if (st.q === 0) sh.acc[pid] = 0;
+  return r;
+}
+
 // ---- Banka ----
 export const assets = () => S.shops.reduce((s, sh) => s + sh.val + Object.values(sh.stock).reduce((a, x) => a + x.q * x.cost, 0), 0);
 export const loanLimit = () => Math.floor((assets() * CONFIG.loanRatio) / 100) * 100;
@@ -136,6 +153,9 @@ export function interestRate(debt: number = S.debt) {
   for (const s of CONFIG.interestSteps) if (u >= s.from) k = s.k;
   return CONFIG.interestDay * k;
 }
+
+/** Mevcut raflarla bir günde beklenen kâr (faiz hariç). Kredi kararında karşılaştırma için. */
+export const dayProfitEstimate = () => (profitPerMin() * CONFIG.daySec) / 60 - rentTotal();
 
 // ---- Devlet ----
 /** Dilimli vergi: her dilim yalnızca kendi aralığındaki kâra uygulanır. */

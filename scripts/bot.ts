@@ -1,11 +1,11 @@
-// Denge için basit bir oyuncu. "ucuz": krediye dokunmaz. "olcu": limitinin yarısına kadar borçlanır. "kredi": limitini hep sonuna kadar kullanır.
+// Denge için basit bir oyuncu. "ucuz": krediye dokunmaz. "olcu": limitinin yarısına kadar borçlanır. "kredi": limitini hep sonuna kadar kullanır. "stok": depoyu doldurmak için gerektiği kadar borçlanır, borcu hiç ödemez, büyümeyi kârıyla yapar.
 import * as k from "../src/engine";
 import { CONFIG } from "../src/data/config";
 import { TYPES } from "../src/data/shops";
 
 export interface BotResult { lv: Record<number, number>; ev: string[]; dead: number | null; cash: number; debt: number; level: number; shops: string }
 
-export function runBot(seed: number, mode: "ucuz" | "olcu" | "kredi", minutes: number): BotResult {
+export function runBot(seed: number, mode: "ucuz" | "olcu" | "kredi" | "stok", minutes: number): BotResult {
   k.setSeed(seed); k.newGame();
   const S = k.S, res: BotResult = { lv: {}, ev: [], dead: null, cash: 0, debt: 0, level: 1, shops: "" };
   const m = () => Math.round(S.t / 60);
@@ -20,7 +20,7 @@ export function runBot(seed: number, mode: "ucuz" | "olcu" | "kredi", minutes: n
     if (S.dead) { res.dead = m(); break; }
     if (S.level > lv) { lv = S.level; res.lv[lv] = m(); }
     if (i % 5) continue;
-    if (mode !== "ucuz") { const av = k.loanLimit() * (mode === "olcu" ? 0.5 : 1) - S.debt; if (av >= 500) k.borrow(Math.floor(av / 100) * 100); }
+    if (mode === "olcu" || mode === "kredi") { const av = k.loanLimit() * (mode === "olcu" ? 0.5 : 1) - S.debt; if (av >= 500) k.borrow(Math.floor(av / 100) * 100); }
     for (const t of TYPES) if (!S.shops.some((s) => s.type === t.id) && S.level >= t.level && S.cash >= t.cost + 1500 && k.openShop(t.id)) res.ev.push(t.id + "@" + m());
     for (const sh of S.shops) { const c = k.upCost(sh); if (c != null && S.cash >= c + 1500 && sh.shelves.every((x) => x) && k.upgrade(sh)) res.ev.push(sh.type + "^" + sh.size + "@" + m()); }
     for (const sh of S.shops) {
@@ -29,7 +29,13 @@ export function runBot(seed: number, mode: "ucuz" | "olcu" | "kredi", minutes: n
       const onShelf = sh.shelves.filter((x) => x).map((x) => x!.pid);
       const want = onShelf.concat(ranked.map((o) => o.pid).filter((p) => !onShelf.includes(p))).slice(0, sh.shelves.length);
       for (const pid of want) {
-        if (sh.stock[pid].q < 30) { const l = best(pid); if (k.net(l) < k.refPrice(pid) * 0.97) k.buy(l, Math.min(Math.floor(S.cash / want.length / k.net(l)), mode === "ucuz" ? 400 : 1500)); }
+        if (sh.stock[pid].q < 30) { const l = best(pid); if (k.net(l) < k.refPrice(pid) * 0.97) {
+          if (mode === "stok") { // depoyu doldur: kasa yetmiyorsa farkı bankadan çek
+            const q = Math.min(l.qty, Math.floor((k.depotCap(sh) - k.depotUsed(sh)) / want.length)), need = q * k.net(l) - S.cash;
+            if (need > 0) k.borrow(Math.ceil(need / 100) * 100);
+            k.buy(l, q);
+          } else k.buy(l, Math.min(Math.floor(S.cash / want.length / k.net(l)), mode === "ucuz" ? 400 : 1500));
+        } }
         const sf = sh.shelves.find((s) => s && s.pid === pid);
         if (sf) sf.price = k.roundP(k.refPrice(pid));
       }

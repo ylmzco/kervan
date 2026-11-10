@@ -3,7 +3,7 @@
 import {CONFIG} from "./data/config";
 import {TYPES} from "./data/shops";
 import {tl,clamp} from "./format";
-import {S,P,T,PIDS,roundP,sysPrice,refPrice,ship,net,sysListing,allListings,shopOf,depotUsed,depotCap,qualMult,shelfRate,shopProfit,profitPerMin,shopRent,upCost,xpNeed,maxBuy,buy,upgrade,openShop,loanLimit,borrow,repay,step,newGame,setOnEv,snapshot,restore,interestRate,taxFor,dayProfit,rentTotal} from "./engine";
+import {S,P,T,PIDS,roundP,sysPrice,refPrice,ship,net,sysListing,allListings,shopOf,depotUsed,depotCap,qualMult,shelfRate,shopProfit,profitPerMin,shopRent,upCost,xpNeed,maxBuy,buy,upgrade,openShop,loanLimit,borrow,repay,step,newGame,setOnEv,snapshot,restore,interestRate,taxFor,dayProfit,rentTotal,sellBack,sellBackPrice,dayProfitEstimate} from "./engine";
 
 /* ---- Arayüz ---- */
 const $=id=>document.getElementById(id);
@@ -53,7 +53,7 @@ function renderShop(){
     h+=`<div class="card"><div class="row"><div><h2>${P[sf.pid].ad}</h2><div class="sub">${i+1}. raf</div></div><div>${st.q>0?qTag(st.qual):`<span class="tag k">Stok yok</span>`}</div></div>
     <div class="kv"><div><b class="num" id="q-${sf.pid}">${st.q}</b><span>stok</span></div><div><b class="num">${tl(rate,1)}/dk</b><span>satış hızı</span></div><div><b class="num ${pr>=0?"up":"dn"}">${st.q>0?(pr>=0?"+":"−")+tl(Math.abs(pr),0):"0"} TL/dk</b><span>kâr</span></div></div>
     <div class="price"><button class="step" data-a="price" data-i="${i}" data-v="-1" aria-label="Fiyatı azalt">−</button><div class="pmid"><b class="num">${tl(sf.price)} TL</b><div class="sub num">piyasa ${tl(ref)} · <span class="${diff>0.5?"dn":diff<-0.5?"up":""}">${Math.abs(diff)<.5?"":diff>0?"+":"−"}%${tl(Math.abs(diff),0)}</span> · maliyet ${tl(st.cost)}</div></div><button class="step" data-a="price" data-i="${i}" data-v="1" aria-label="Fiyatı artır">+</button></div>
-    <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-a="swap" data-i="${i}">Ürünü değiştir</button><button class="btn g" style="flex:1" data-a="goto" data-v="${sf.pid}">Mal al</button></div></div>`});
+    <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-a="swap" data-i="${i}">Ürünü değiştir</button><button class="btn g" style="flex:1" data-a="goto" data-v="${sf.pid}">Mal al</button></div>${st.q>0?`<button class="btn ghost sm full" style="margin-top:8px" data-a="sellback" data-v="${sf.pid}">Toptancıya geri sat</button>`:""}</div>`});
   const c=upCost(sh);if(c!=null){const z=CONFIG.sizes[sh.size+1];h+=`<div class="card goal"><div class="row"><div><h2>${z.ad} dükkâna büyüt</h2><div class="sub">${z.shelves} raf, ${tl(z.depot,0)} birim depo. Kira ${tl(Math.round(z.rent*t.tier*CONFIG.rentScale),0)} TL/gün olur.</div></div>${costBtn("upgrade",c)}</div><div class="depo"><i id="goalB" data-c="${c}" style="width:${clamp(S.cash/c*100,0,100)}%"></i></div></div>`}
   h+=`<div class="card"><h2 style="margin-bottom:6px">Son satışlar</h2><div class="feed" id="feed">${feedHtml()}</div></div>`;
   return h}
@@ -101,11 +101,23 @@ function swapSheet(i){const sh=cur(),have=T[sh.type].products.map(a=>P[a[0]]).fi
   openSheet(`<h2 style="margin-bottom:10px">${i+1}. rafta ne satılsın?</h2>`+(have.length?have.map(p=>`<button class="lst" data-a="setp" data-i="${i}" data-v="${p.id}"><div class="row"><b>${p.ad}</b><span class="sm num">${sh.stock[p.id].q} birim · %${Math.round(sh.stock[p.id].qual)}</span></div></button>`).join(""):`<div class="sub" style="margin-bottom:12px">Depoda rafta olmayan başka ürün yok. Önce pazardan al.</div>`)+`<button class="btn ghost full" data-a="close">Kapat</button>`)}
 function bankSheet(){sheetL=null;const lim=loanLimit(),av=Math.floor(Math.max(0,lim-S.debt)/100)*100,rp=Math.floor(Math.min(S.debt,Math.max(0,S.cash))),f=x=>tl(x,0)+" TL";
   openSheet(`<h2>Banka</h2><div class="sub">Kredi limitin, dükkânlarının ve depodaki malın değerinin %${Math.round(CONFIG.loanRatio*100)} kadarıdır. Faiz her gün sonunda kasadan kesilir. Borcun limitin yarısını geçince faiz artar: %${tl(CONFIG.interestDay*100,0)}, yarıdan sonra %${tl(CONFIG.interestDay*CONFIG.interestSteps[0].k*100,0)}, %80 üstünde %${tl(CONFIG.interestDay*CONFIG.interestSteps[1].k*100,0)}.</div>
-  <table class="tbl num"><tr><td>Borç</td><td>${f(S.debt)}</td></tr><tr><td>Kredi limiti</td><td>${f(lim)}</td></tr><tr><td>Günlük faiz (%${tl(interestRate()*100,1)})</td><td>${f(S.debt*interestRate())}</td></tr></table>
-  ${av>=100?`<div class="row"><b>Kredi çek</b><b class="num" id="bv"></b></div><input type="range" id="bq" min="100" max="${av}" step="100" value="${Math.max(100,Math.floor(av/200)*100)}"><button class="btn g full" data-a="borrow">Kredi çek</button>`:`<div class="card hint">Çekilebilir kredin yok.</div>`}
+  <table class="tbl num"><tr><td>Borç</td><td>${f(S.debt)}</td></tr><tr><td>Kredi limiti</td><td>${f(lim)}</td></tr><tr><td>Günlük faiz (%${tl(interestRate()*100,1)})</td><td>${f(S.debt*interestRate())}</td></tr><tr><td>Tahmini günlük kâr (faiz hariç)</td><td>${f(dayProfitEstimate())}</td></tr></table>
+  ${av>=100?`<div class="row"><b>Kredi çek</b><b class="num" id="bv"></b></div><input type="range" id="bq" min="100" max="${av}" step="100" value="${Math.max(100,Math.floor(av/200)*100)}"><div class="sub" id="bw" style="margin-bottom:8px"></div><button class="btn g full" data-a="borrow">Kredi çek</button>`:`<div class="card hint">Çekilebilir kredin yok.</div>`}
   ${rp>=1?`<div class="row" style="margin-top:16px"><b>Borç öde</b><b class="num" id="pv"></b></div><input type="range" id="pq" min="1" max="${rp}" value="${rp}"><button class="btn full" data-a="repay">Borç öde</button>`:""}
   <button class="btn ghost full" style="margin-top:10px" data-a="close">Kapat</button>`);
-  const b=$("bq"),q=$("pq");if(b){const u=()=>$("bv").textContent=f(+b.value)+" · faizi "+f((S.debt+ +b.value)*interestRate(S.debt+ +b.value))+"/gün";b.oninput=u;u()}if(q){const u=()=>$("pv").textContent=f(+q.value);q.oninput=u;u()}}
+  const b=$("bq"),q=$("pq");if(b){const u=()=>{const nd=S.debt+ +b.value,fi=nd*interestRate(nd),est=dayProfitEstimate(),w=$("bw");$("bv").textContent=f(+b.value)+" · faizi "+f(fi)+"/gün";
+    if(est<=0){w.textContent="Rafların şu an kâr üretmiyor; bu faizi mal satarak karşılaman gerekecek.";w.className="sub dn"}
+    else if(fi>est*.5){w.textContent="Dikkat: bu faiz, tahmini günlük kârının (%"+tl(est?fi/est*100:0,0)+") yarısından fazlasını götürür.";w.className="sub dn"}
+    else{w.textContent="Bu faiz, tahmini günlük kârının %"+tl(fi/est*100,0)+" kadarı.";w.className="sub"}};b.oninput=u;u()}if(q){const u=()=>$("pv").textContent=f(+q.value);q.oninput=u;u()}}
+let sheetP=null;
+function sellCalc(){const sh=cur(),st=sh.stock[sheetP],q=+$("sr").value,p=sellBackPrice(sh,sheetP);$("sv").textContent=q+" birim";$("st1").textContent=tl(q*p)+" TL";$("st2").textContent="−"+tl(q*(st.cost-p))+" TL";$("sdo").textContent=q+" birimi geri sat"}
+function sellSheet(pid){sheetL=null;sheetP=pid;const sh=cur(),st=sh.stock[pid],p=sellBackPrice(sh,pid);
+  openSheet(`<h2>${P[pid].ad}: toptancıya geri sat</h2><div class="sub">Sistem toptancısı malı her zaman maliyetinin altında geri alır. Nakde sıkıştığında ya da borç kapatırken çıkış yoludur.</div>
+  <table class="tbl num"><tr><td>Maliyetin</td><td>${tl(st.cost)} TL</td></tr><tr><td>Geri alım fiyatı</td><td class="dn">${tl(p)} TL</td></tr></table>
+  <div class="row"><b>Miktar</b><b class="num" style="font-size:20px" id="sv"></b></div><input type="range" id="sr" min="1" max="${st.q}" value="${st.q}">
+  <table class="tbl num"><tr><td>Kasaya girecek</td><td id="st1"></td></tr><tr><td>Zarar</td><td class="dn" id="st2"></td></tr></table>
+  <button class="btn full" data-a="dosell" id="sdo"></button><button class="btn ghost full" style="margin-top:8px" data-a="close">Vazgeç</button>`);
+  $("sr").oninput=sellCalc;sellCalc()}
 function taxSheet(){sheetL=null;const dp=dayProfit(),f=x=>tl(x,0)+" TL";let lo=0;
   openSheet(`<h2>Vergi dairesi</h2><div class="sub">Her gün sonunda o günün kârından vergi kesilir. Kâr; cirodan satılan malın maliyeti, kira ve faiz düşülerek hesaplanır. Oranlar dilimlidir: her oran yalnızca kendi dilimindeki kâra uygulanır.</div>
   <table class="tbl num">${CONFIG.taxBrackets.map(b=>{const r=`<tr><td>${b.upTo===Infinity?f(lo)+" üstü":f(lo)+" – "+f(b.upTo)}</td><td>%${tl(b.rate*100,0)}</td></tr>`;lo=b.upTo;return r}).join("")}</table>
@@ -127,6 +139,8 @@ document.addEventListener("click",e=>{
   else if(a==="sel"){if(S.level<P[v].lvl){toast(P[v].ad+" "+P[v].lvl+". seviyede açılır.");return}S.sel[cur().type]=v}
   else if(a==="bank"){bankSheet();return}
   else if(a==="tax"){taxSheet();return}
+  else if(a==="sellback"){sellSheet(v);return}
+  else if(a==="dosell"){const q=+$("sr").value,r=sellBack(cur(),sheetP,q);closeSheet();if(r)toast(q+" birim "+P[sheetP].ad+" geri satıldı: "+tl(r,0)+" TL.")}
   else if(a==="borrow"){const x=borrow(+$("bq").value);if(x)toast(tl(x,0)+" TL kredi çekildi.");bankSheet();tickUI();return}
   else if(a==="repay"){const x=repay(+$("pq").value);if(x)toast(tl(x,0)+" TL borç ödendi.");bankSheet();tickUI();return}
   else if(a==="goto"){S.cur=S.shops.indexOf(shopOf(v));S.sel[P[v].type]=v;S.tab="market";top()}

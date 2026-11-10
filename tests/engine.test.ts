@@ -54,7 +54,31 @@ describe("banka", () => {
     expect(k.interestRate(lim * 0.4)).toBeCloseTo(CONFIG.interestDay);
     expect(k.interestRate(lim * 0.6)).toBeCloseTo(CONFIG.interestDay * 1.5);
     expect(k.interestRate(lim * 0.9)).toBeCloseTo(CONFIG.interestDay * 2.25);
-    expect(k.interestRate(lim * 1.2)).toBeCloseTo(CONFIG.interestDay * 3);
+    expect(k.interestRate(lim * 1.2)).toBeCloseTo(CONFIG.interestDay * 4);
+  });
+  it("tek raflı bakkal, limitinin tamamını çekse bile zarara geçmez", () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      k.setSeed(seed); k.newGame();
+      // başlangıçtaki üç üründen en kârlısının en ucuz ilanı
+      const best = ["makarna", "un", "seker"].map((p) => k.allListings(p)[0]).sort((a, b) => (k.refPrice(b.pid) - k.net(b)) * k.P[b.pid].rate - (k.refPrice(a.pid) - k.net(a)) * k.P[a.pid].rate)[0];
+      k.buy(best, 100);
+      k.borrow(1e9);
+      expect(k.dayProfitEstimate() - k.S.debt * k.interestRate()).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("geri satış", () => {
+  it("her zaman maliyetin altındadır ve stoğu nakde çevirir", () => {
+    for (const q of [20, 50, 85]) {
+      k.setSeed(q); k.newGame();
+      const l = k.allListings("makarna").find((x) => !x.sys)!;
+      k.buy(l, 100);
+      const sh = k.S.shops[0], cost = sh.stock.makarna.cost, before = k.S.cash;
+      expect(k.sellBackPrice(sh, "makarna")).toBeLessThan(cost);
+      const r = k.sellBack(sh, "makarna", 40);
+      expect(sh.stock.makarna.q).toBe(60); expect(k.S.cash).toBeCloseTo(before + r); expect(r).toBeLessThan(40 * cost);
+    }
   });
 });
 
