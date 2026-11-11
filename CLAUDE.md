@@ -14,7 +14,7 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 ## Yapı
 - `src/data/config.ts` — denge değerlerinin tamamı
 - `src/data/shops.ts` — dükkân türleri ve ürünler
-- `src/data/world.ts` — şehirler, satıcı adları
+- `src/data/world.ts` — şehirler, mesafe hesabı, dükkân açılabilen iller, satıcı adları
 - `src/engine.ts` — oyun motoru; DOM bilmez, Node'da çalışır
 - `src/ui.ts` — arayüz (render, alt sayfalar, dokunma, kayıt)
 - `scripts/bot.ts`, `scripts/sim.ts` — denge botu ve simülasyon
@@ -42,4 +42,5 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 - Borcunu hiç ödemeyen botlar başta hızlı, sonda yavaş; ölçülü borçlanan en iyisi. Hiçbiri iflas etmiyor: iflasın gerçek bir tehdit olup olmayacağı oynayarak karar verilecek.
 - "Zararına hemen sat" yalnızca rafta olan ürün için arayüzde var.
 - Pazarda ilan: kelepir alıp piyasa değerinden satan bot, ölçülü bota göre tekele %20–30 erken ulaşıyor. Piyasa dalgasını zamanlayan (kötüde alıp canlıda satan) oyuncu ölçülmedi.
-- Her türden tek dükkân, tek il (İstanbul).
+- Üç il var (İstanbul, Ankara, İzmir); her ilde her türden tek dükkân. İl farkı yalnızca satış hızı, kira ve nakliye mesafesi; ile özgü ürün ya da fiyat yok.
+- Hız düğmesi ve Ayar paneli herkese açık test araçları; mağaza sürümünden önce gizlenecek. Gerçek oyunculu sürümde kasa, stok ve zaman sunucuda tutulmalı.

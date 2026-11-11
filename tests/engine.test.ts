@@ -8,12 +8,14 @@ const mk = (pid: string, q: number, price: number, qty = 1000): k.Listing => ({ 
 
 describe("mal alımı", () => {
   it("kalite ve maliyet ağırlıklı ortalamayla birleşir", () => {
-    k.buy(mk("makarna", 40, 10), 50); k.buy(mk("makarna", 80, 14), 50);
+    const a = mk("makarna", 40, 10), b = mk("makarna", 80, 14);
+    k.buy(a, 50); k.buy(b, 50);
     const st = k.S.shops[0].stock.makarna;
-    expect(st.q).toBe(100); expect(st.qual).toBeCloseTo(60); expect(st.cost).toBeCloseTo(12);
+    expect(st.q).toBe(100); expect(st.qual).toBeCloseTo(60); expect(st.cost).toBeCloseTo((k.net(a) + k.net(b)) / 2); // nakliye dahil
   });
   it("kasayı ve depoyu aşamaz", () => {
-    expect(k.buy(mk("makarna", 50, 10), 99999)).toBe(300); // 3000 TL / 10
+    const l = mk("makarna", 50, 10);
+    expect(k.buy(l, 99999)).toBe(Math.floor(CONFIG.startCash / k.net(l)));
     expect(k.S.cash).toBeGreaterThanOrEqual(0);
     k.S.cash = 1e6; k.buy(mk("makarna", 50, 1, 99999), 99999);
     expect(k.depotUsed(k.S.shops[0])).toBe(CONFIG.sizes[0].depot);
@@ -110,6 +112,34 @@ describe("pazarda ilan", () => {
     k.buy(mk("makarna", 80, 14), 100); // depoda artık 100 @%50 + 100 @%80
     k.cancelOffer(o.id);
     expect(sh.stock.makarna.q).toBe(300); expect(sh.stock.makarna.qual).toBeCloseTo(60); expect(k.S.offers.length).toBe(0);
+  });
+});
+
+describe("iller", () => {
+  const far = (city: string): k.Listing => ({ id: 998, pid: "makarna", seller: "T", city, km: 0, q: 50, qty: 1000, price: 10 });
+  it("nakliye, malı alan dükkânın iline göre hesaplanır", () => {
+    k.S.level = 9; k.S.cash = 1e6;
+    expect(k.openShop("bakkal", "ankara")).toBe(true);
+    const [ist, ank] = k.S.shops, l = far("Ankara");
+    expect(k.ship(l, ank)).toBeLessThan(k.ship(l, ist));
+    expect(k.kmTo(l, ank)).toBe(20);
+    expect(k.kmTo(l, ist)).toBeGreaterThan(400); expect(k.kmTo(l, ist)).toBeLessThan(500);
+    k.buy(l, 100, ank);
+    expect(ank.stock.makarna.q).toBe(100); expect(ist.stock.makarna.q).toBe(0);
+  });
+  it("aynı ilde aynı türden ikinci dükkân açılamaz, il seviyesi gelmeden şube açılamaz", () => {
+    k.S.cash = 1e6;
+    expect(k.openShop("bakkal", "istanbul")).toBe(false);
+    expect(k.openShop("bakkal", "ankara")).toBe(false); // 1. seviye
+    k.S.level = 4;
+    expect(k.openShop("bakkal", "ankara")).toBe(true); expect(k.openShop("bakkal", "ankara")).toBe(false);
+  });
+  it("ilin nüfusu satış hızını, kira çarpanı kirayı etkiler", () => {
+    k.S.level = 9; k.S.cash = 1e6; k.openShop("bakkal", "ankara");
+    const [ist, ank] = k.S.shops;
+    k.buy(mk("makarna", 50, 10), 50, ist); k.buy(mk("makarna", 50, 10), 50, ank);
+    expect(k.shelfRate(ank, ank.shelves[0]) / k.shelfRate(ist, ist.shelves[0])).toBeCloseTo(0.85);
+    expect(k.shopRent(ank)).toBeLessThan(k.shopRent(ist));
   });
 });
 

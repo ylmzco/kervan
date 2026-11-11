@@ -3,9 +3,13 @@
 import {CONFIG} from "./data/config";
 import {TYPES} from "./data/shops";
 import {tl,clamp} from "./format";
-import {S,P,T,PIDS,roundP,sysPrice,refPrice,ship,net,sysListing,allListings,shopOf,depotUsed,depotCap,qualMult,shelfRate,shopProfit,profitPerMin,shopRent,upCost,xpNeed,maxBuy,buy,upgrade,openShop,loanLimit,borrow,repay,step,newGame,setOnEv,snapshot,restore,interestRate,taxFor,dayProfit,rentTotal,sellBack,sellBackPrice,dayProfitEstimate,shopOffers,offerFair,offerRateAt,offerSlots,createOffer,cancelOffer} from "./engine";
+import {SHOP_CITIES} from "./data/world";
+import * as E from "./engine";
+import {S,P,T,PIDS,roundP,sysPrice,refPrice,cityOf,depotUsed,depotCap,qualMult,shelfRate,shopProfit,profitPerMin,shopRent,upCost,xpNeed,upgrade,openShop,loanLimit,borrow,repay,step,newGame,setOnEv,snapshot,restore,interestRate,taxFor,dayProfit,rentTotal,sellBack,sellBackPrice,dayProfitEstimate,shopOffers,offerFair,offerRateAt,offerSlots,createOffer,cancelOffer} from "./engine";
 
 /* ---- Arayüz ---- */
+// Pazar her zaman seçili dükkân için açılır: nakliye ve net fiyat o dükkânın iline göre hesaplanır.
+const shopOf=()=>cur(),ship=l=>E.ship(l,cur()),net=l=>E.net(l,cur()),kmTo=l=>E.kmTo(l,cur()),sysListing=id=>E.sysListing(id,cur()),allListings=id=>E.allListings(id,cur()),maxBuy=l=>E.maxBuy(l,cur()),buy=(l,q)=>E.buy(l,q,cur());
 const $=id=>document.getElementById(id);
 let dirty=true,pend={},sheetL=null,sheetQ=0,toastT;
 const cur=()=>S.shops[S.cur];
@@ -28,27 +32,28 @@ function qTag(q){return `<span class="tag q ${q>=70?"hi":""}">%${Math.round(q)} 
 function spark(id){const h=S.market.hist[id];if(h.length<2)return"";const mn=Math.min(...h),mx=Math.max(...h),w=300,H=38;
   const pts=h.map((v,i)=>(i/(h.length-1)*w).toFixed(1)+","+(H-4-(mx===mn?.5:(v-mn)/(mx-mn))*(H-8)).toFixed(1)).join(" ");
   return `<svg class="sp" viewBox="0 0 ${w} ${H}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#17794a" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`}
-function reward(n){const a=TYPES.filter(t=>t.level===n).map(t=>t.ad+" açılabilir"),b=PIDS.filter(id=>P[id].lvl===n&&n>T[P[id].type].level).map(id=>T[P[id].type].ad+": "+P[id].ad);return a.concat(b.length?["yeni ürün: "+b.join(", ")]:[]).join(" · ")}
-const shopChips=()=>S.shops.length<2?"":`<div class="prods">`+S.shops.map((sh,i)=>`<button class="${i===S.cur?"on":""}" data-a="shopsel" data-v="${i}"><b>${T[sh.type].ad}</b><span>${CONFIG.sizes[sh.size].ad}</span></button>`).join("")+`</div>`;
+function reward(n){const a=TYPES.filter(t=>t.level===n).map(t=>t.ad+" açılabilir").concat(SHOP_CITIES.filter(c=>c.level===n&&n>1).map(c=>c.ad+"'da şube açılabilir")),b=PIDS.filter(id=>P[id].lvl===n&&n>T[P[id].type].level).map(id=>T[P[id].type].ad+": "+P[id].ad);return a.concat(b.length?["yeni ürün: "+b.join(", ")]:[]).join(" · ")}
+const shopChips=()=>S.shops.length<2?"":`<div class="prods">`+S.shops.map((sh,i)=>`<button class="${i===S.cur?"on":""}" data-a="shopsel" data-v="${i}"><b>${T[sh.type].ad}</b><span>${cityOf(sh).ad} · ${CONFIG.sizes[sh.size].ad}</span></button>`).join("")+`</div>`;
 const costBtn=(a,c,extra,dis)=>`<button class="btn" data-a="${a}" ${extra||""} data-cost="${c}" ${S.cash<c||dis?"disabled":""}>${tl(c,0)} TL</button>`;
 function renderHome(){
   const nx=xpNeed(S.level+1),pv=xpNeed(S.level),nu=reward(S.level+1);
   let h=`<div class="card lvl"><div class="row"><div><div class="lbl">Seviye</div><b class="big num">${S.level}</b></div><div style="text-align:right"><div class="sub num" id="xpT">Sonraki seviyeye ${tl(Math.max(0,nx-S.xp),0)} TL ciro</div>${nu?`<div class="sub">${S.level+1}. seviyede: ${nu}</div>`:""}</div></div><div class="depo"><i id="xpB" data-a0="${pv}" data-a1="${nx}" style="width:${clamp((S.xp-pv)/(nx-pv)*100,0,100)}%"></i></div></div>`;
   if(S.first)h+=`<div class="card hint"><b>Rafların boş.</b><div class="sub" style="color:inherit;margin:4px 0 12px">Pazardan mal al. Aldığın mal anında depoya girer ve satılmaya başlar.</div><button class="btn full" data-a="tab" data-v="market">Pazara git</button></div>`;
-  else{let al="";S.shops.forEach((sh,i)=>{sh.shelves.forEach(sf=>{if(sf&&sh.stock[sf.pid].q<=0)al+=`<div class="al"><span><b>${T[sh.type].ad}:</b> ${P[sf.pid].ad} bitti</span><button class="btn sm g" data-a="goto" data-v="${sf.pid}">Mal al</button></div>`});
-      const e=sh.shelves.filter(x=>!x).length;if(e)al+=`<div class="al"><span><b>${T[sh.type].ad}:</b> ${e} raf boş</span><button class="btn sm ghost" data-a="gomarket" data-v="${i}">Pazar</button></div>`});
+  else{let al="";S.shops.forEach((sh,i)=>{sh.shelves.forEach(sf=>{if(sf&&sh.stock[sf.pid].q<=0)al+=`<div class="al"><span><b>${T[sh.type].ad} (${cityOf(sh).ad}):</b> ${P[sf.pid].ad} bitti</span><button class="btn sm g" data-a="goto" data-i="${i}" data-v="${sf.pid}">Mal al</button></div>`});
+      const e=sh.shelves.filter(x=>!x).length;if(e)al+=`<div class="al"><span><b>${T[sh.type].ad} (${cityOf(sh).ad}):</b> ${e} raf boş</span><button class="btn sm ghost" data-a="gomarket" data-v="${i}">Pazar</button></div>`});
     if(S.debt>loanLimit())al+=`<div class="al"><span><b>Banka:</b> borcun kredi limitinin üstünde</span><button class="btn sm ghost" data-a="bank">Banka</button></div>`;
     if(al)h+=`<div class="card"><h2 style="margin-bottom:4px">Bekleyen işler</h2>${al}</div>`}
   h+=`<h3>Dükkânlarım</h3>`;
-  S.shops.forEach((sh,i)=>{const u=depotUsed(sh),pr=shopProfit(sh);h+=`<button class="lst" data-a="shopgo" data-v="${i}"><div class="row"><div><b>${T[sh.type].ad}</b><div class="sm">${CONFIG.sizes[sh.size].ad} · İstanbul · ${sh.shelves.filter(x=>x).length}/${sh.shelves.length} raf dolu</div></div><div style="text-align:right"><b class="num ${pr>=0?"up":"dn"}">${pr>=0?"+":"−"}${tl(Math.abs(pr),0)} TL/dk</b><div class="sm num">kira ${tl(shopRent(sh),0)} TL/gün</div></div></div><div class="depo"><i style="width:${u/depotCap(sh)*100}%"></i></div></button>`});
+  S.shops.forEach((sh,i)=>{const u=depotUsed(sh),pr=shopProfit(sh);h+=`<button class="lst" data-a="shopgo" data-v="${i}"><div class="row"><div><b>${T[sh.type].ad}</b><div class="sm">${CONFIG.sizes[sh.size].ad} · ${cityOf(sh).ad} · ${sh.shelves.filter(x=>x).length}/${sh.shelves.length} raf dolu</div></div><div style="text-align:right"><b class="num ${pr>=0?"up":"dn"}">${pr>=0?"+":"−"}${tl(Math.abs(pr),0)} TL/dk</b><div class="sm num">kira ${tl(shopRent(sh),0)} TL/gün</div></div></div><div class="depo"><i style="width:${u/depotCap(sh)*100}%"></i></div></button>`});
   const lim=loanLimit();h+=`<h3>Banka</h3><button class="lst" data-a="bank"><div class="row"><div><b>${S.debt>0?"Borç "+tl(S.debt,0)+" TL":"Borcun yok"}</b><div class="sm num">Kredi limiti ${tl(lim,0)} TL · faiz günde %${tl(interestRate()*100,1)}</div></div><div style="text-align:right"><b class="num ${S.debt>0?"dn":""}">${S.debt>0?"−"+tl(S.debt*interestRate(),0)+" TL/gün":tl(Math.max(0,lim-S.debt),0)+" TL"}</b><div class="sm">${S.debt>0?"faiz":"çekilebilir"}</div></div></div></button>`;
   const dp=dayProfit(),tx=taxFor(Math.max(0,dp));h+=`<h3>Devlet</h3><button class="lst" data-a="tax"><div class="row"><div><b>Vergi dairesi</b><div class="sm num">Bugünkü kâr <span id="dpT">${tl(dp,0)}</span> TL</div></div><div style="text-align:right"><b class="num ${tx>0?"dn":""}" id="txT">${tx>0?"−"+tl(tx,0)+" TL":"vergi yok"}</b><div class="sm">gün sonunda</div></div></div></button>`;
-  const rest=TYPES.filter(t=>!S.shops.some(s=>s.type===t.id));
-  if(rest.length){h+=`<h3>Yeni dükkân</h3>`;rest.forEach(t=>{const lk=S.level<t.level;h+=`<div class="card ${lk?"lock":""}"><div class="row"><div><h2>${t.ad}</h2><div class="sub">${t.products.slice(0,3).map(a=>a[1]).join(", ")} ve ${t.products.length-3} ürün daha</div></div>${lk?`<span class="tag q">${t.level}. seviyede açılır</span>`:costBtn("openshop",t.cost,`data-v="${t.id}"`)}</div></div>`})}
+  let nh="";TYPES.forEach(t=>{const lk=S.level<t.level,open=SHOP_CITIES.filter(c=>!S.shops.some(x=>x.type===t.id&&x.city===c.id));if(!open.length)return;
+    nh+=`<div class="card ${lk?"lock":""}"><div class="row"><div><h2>${t.ad}</h2><div class="sub">${t.products.slice(0,3).map(a=>a[1]).join(", ")} ve ${t.products.length-3} ürün daha</div></div>${lk?`<span class="tag q">${t.level}. seviyede açılır</span>`:""}</div>${lk?"":open.map(c=>`<div class="al"><span><b>${c.ad}</b><span class="sm num"> · satış ×${tl(c.demand,2)} · kira ×${tl(c.rentK,2)}</span></span>${S.level<c.level?`<span class="tag q">${c.level}. seviye</span>`:costBtn("openshop",t.cost,`data-v="${t.id}" data-c="${c.id}"`)}</div>`).join("")}</div>`});
+  if(nh)h+=`<h3>Yeni dükkân</h3>`+nh;
   return h}
 function renderShop(){
   const sh=cur(),t=T[sh.type],u=depotUsed(sh);
-  let h=shopChips()+`<div class="card"><div class="row"><div><h2>${t.ad}</h2><div class="sub">${CONFIG.sizes[sh.size].ad} dükkân · İstanbul · ${sh.shelves.length} raf</div></div><div style="text-align:right"><b class="num" id="depoN">${u}</b><span class="sub"> / ${depotCap(sh)} birim</span></div></div><div class="depo"><i id="depoB" style="width:${u/depotCap(sh)*100}%"></i></div></div>`;
+  let h=shopChips()+`<div class="card"><div class="row"><div><h2>${t.ad}</h2><div class="sub">${CONFIG.sizes[sh.size].ad} dükkân · ${cityOf(sh).ad} · ${sh.shelves.length} raf</div></div><div style="text-align:right"><b class="num" id="depoN">${u}</b><span class="sub"> / ${depotCap(sh)} birim</span></div></div><div class="depo"><i id="depoB" style="width:${u/depotCap(sh)*100}%"></i></div></div>`;
   sh.shelves.forEach((sf,i)=>{
     if(!sf){h+=`<div class="card"><div class="row"><div><h2>${i+1}. raf</h2><div class="sub">Boş. Pazardan aldığın yeni ürün buraya yerleşir.</div></div><button class="btn ghost" data-a="gomarket" data-v="${S.cur}">Pazar</button></div></div>`;return}
     const st=sh.stock[sf.pid],ref=refPrice(sf.pid),r=sf.price/ref,rate=st.q>0?shelfRate(sh,sf):0,diff=(r-1)*100,pr=rate*(sf.price-st.cost);
@@ -76,7 +81,7 @@ function renderBuy(seg){
   let h=shopChips()+seg+`<div class="prods">`+t.products.map(a=>{if(S.level<P[a[0]].lvl)return `<button class="lock" data-a="sel" data-v="${a[0]}"><b>${a[1]}</b><span>${P[a[0]].lvl}. seviye</span></button>`;const b=allListings(a[0])[0];return `<button class="${a[0]===id?"on":""}" data-a="sel" data-v="${a[0]}"><b>${a[1]}</b><span class="num">${tl(net(b))} TL</span></button>`}).join("")+`</div>`;
   h+=`<div class="card"><div class="row"><div><h2>${p.ad}</h2><div class="sub num">Sistem fiyatı ${tl(c0)} TL <span class="${ch>0.5?"up":ch<-0.5?"dn":""}">${Math.abs(ch)<.5?"":(ch>0?"▲":"▼")+" %"+tl(Math.abs(ch),0)}</span></div></div><div style="text-align:right"><b class="num">${tl(refPrice(id))} TL</b><div class="sub">dükkânda satılır</div></div></div>${spark(id)}<div class="sub num">${t.ad} deposunda: ${st.q} birim${st.q?` · %${Math.round(st.qual)} kalite · ${tl(st.cost)} TL maliyet`:""} · temel hız ${tl(p.rate,1)}/dk</div></div>`;
   allListings(id).forEach((l,i)=>{const mrg=(refPrice(id)/net(l)-1)*100;
-    h+=`<button class="lst ${l.sys?"sys":""}" data-a="open" data-v="${l.id}"><div class="row"><div><b>${l.seller}</b> ${i===0&&!l.sys?`<span class="tag best">En ucuz</span>`:""} ${l.kelepir?`<span class="tag k">Kelepir</span>`:""}<div class="sm">${l.city} · ${l.km} km · ${l.sys?"sınırsız":l.qty+" birim"}</div></div><div style="text-align:right"><div class="net num">${tl(net(l))} TL</div><div class="sm num">${tl(l.price)} + ${tl(ship(l))} nakliye</div></div></div><div class="row" style="margin-top:8px">${qTag(l.q)}<span class="sm num">hız ×${tl(qualMult(l.q),1)} · <span class="${mrg>0?"up":"dn"}">${mrg>=0?"+":"−"}%${tl(Math.abs(mrg),0)} marj</span></span></div></button>`});
+    h+=`<button class="lst ${l.sys?"sys":""}" data-a="open" data-v="${l.id}"><div class="row"><div><b>${l.seller}</b> ${i===0&&!l.sys?`<span class="tag best">En ucuz</span>`:""} ${l.kelepir?`<span class="tag k">Kelepir</span>`:""}<div class="sm">${l.city} · ${kmTo(l)} km · ${l.sys?"sınırsız":l.qty+" birim"}</div></div><div style="text-align:right"><div class="net num">${tl(net(l))} TL</div><div class="sm num">${tl(l.price)} + ${tl(ship(l))} nakliye</div></div></div><div class="row" style="margin-top:8px">${qTag(l.q)}<span class="sm num">hız ×${tl(qualMult(l.q),1)} · <span class="${mrg>0?"up":"dn"}">${mrg>=0?"+":"−"}%${tl(Math.abs(mrg),0)} marj</span></span></div></button>`});
   return h}
 function render(){
   $("main").innerHTML=S.tab==="home"?renderHome():S.tab==="shop"?renderShop():renderMarket();
@@ -104,7 +109,7 @@ function buyCalc(){const l=sheetL,st=shopOf(l.pid).stock[l.pid],nq=st.q+sheetQ,n
 function buySheet(){
   const l=sheetL,mx=maxBuy(l),sh=shopOf(l.pid);sheetQ=clamp(sheetQ,mx>0?1:0,mx);
   const why=mx>0?"":S.cash<net(l)?"Kasada yeterli para yok.":depotCap(sh)-depotUsed(sh)<=0?"Depo dolu.":"";
-  openSheet(`<div class="row"><div><h2>${P[l.pid].ad}</h2><div class="sub">${l.seller} · ${l.city} (${l.km} km)</div></div>${qTag(l.q)}</div>
+  openSheet(`<div class="row"><div><h2>${P[l.pid].ad}</h2><div class="sub">${l.seller} · ${l.city} (${kmTo(l)} km)</div></div>${qTag(l.q)}</div>
   <table class="tbl num"><tr><td>Birim fiyat</td><td>${tl(l.price)} TL</td></tr><tr><td>Nakliye</td><td>${tl(ship(l))} TL</td></tr><tr><td>Net fiyat</td><td class="up">${tl(net(l))} TL</td></tr></table>
   ${mx>0?`<div class="row"><b>Miktar</b><b class="num" style="font-size:20px" id="sq"></b></div><input type="range" id="qr" min="1" max="${mx}" value="${sheetQ}">
   <div class="qk"><button data-a="qk" data-v=".25">%25</button><button data-a="qk" data-v=".5">%50</button><button data-a="qk" data-v="1">En fazla (${mx})</button></div>
@@ -178,7 +183,7 @@ document.addEventListener("click",e=>{
   else if(a==="dosell"){const q=+$("sr").value,r=sellBack(cur(),sheetP,q);closeSheet();if(r)toast(q+" birim "+P[sheetP].ad+" satıldı: "+tl(r,0)+" TL.")}
   else if(a==="borrow"){const x=borrow(+$("bq").value);if(x)toast(tl(x,0)+" TL kredi çekildi.");bankSheet();tickUI();return}
   else if(a==="repay"){const x=repay(+$("pq").value);if(x)toast(tl(x,0)+" TL borç ödendi.");bankSheet();tickUI();return}
-  else if(a==="goto"){S.cur=S.shops.indexOf(shopOf(v));S.sel[P[v].type]=v;S.tab="market";top()}
+  else if(a==="goto"){if(b.dataset.i!=null)S.cur=i;S.sel[P[v].type]=v;S.tab="market";top()}
   else if(a==="speed")S.speed=S.speed===1?3:S.speed===3?10:1;
   else if(a==="price"){const sf=cur().shelves[i],ref=refPrice(sf.pid),stp=Math.max(.05,roundP(ref*.02));sf.price=clamp(roundP(sf.price+stp*v),roundP(ref*.7),roundP(ref*1.3))}
   else if(a==="open"){const l=findL(v);if(!l){toast("Bu ilan az önce tükendi.");dirty=true;return}sheetL=l;sheetQ=Math.ceil(maxBuy(l)/2);buySheet();return}
@@ -188,7 +193,7 @@ document.addEventListener("click",e=>{
   else if(a==="swap"){swapSheet(i);return}
   else if(a==="setp"){cur().shelves[i]={pid:v,price:roundP(refPrice(v))};closeSheet()}
   else if(a==="upgrade"){const sh=cur();if(upgrade(sh))toast(T[sh.type].ad+" artık "+CONFIG.sizes[sh.size].ad.toLowerCase()+" dükkân.")}
-  else if(a==="openshop"){if(openShop(v)){S.cur=S.shops.length-1;S.tab="market";top();toast(T[v].ad+" açıldı. Raflar için mal al.")}}
+  else if(a==="openshop"){if(openShop(v,b.dataset.c)){S.cur=S.shops.length-1;S.tab="market";S.mview="buy";top();toast(cityOf(cur()).ad+" "+T[v].ad+" açıldı. Raflar için mal al.")}}
   else if(a==="settings"){settingsSheet();return}
   else if(a==="reset"){newGame();closeSheet();save()}
   else if(a==="close"){closeSheet()}

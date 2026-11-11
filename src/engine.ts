@@ -1,13 +1,13 @@
 // Oyun motoru. DOM bilmez; Node'da da çalışır (testler ve simülasyon bunu kullanır).
 import { CONFIG, MarketState } from "./data/config";
 import { TYPES, ShopType } from "./data/shops";
-import { CITIES, SELLERS } from "./data/world";
+import { CITIES, SELLERS, SHOP_CITIES, ShopCity, distKm } from "./data/world";
 import { clamp } from "./format";
 
 export interface Product { id: string; ad: string; sys: number; type: string; rate: number; markup: number; lvl: number }
 export interface Stock { q: number; qual: number; cost: number; mref?: number } // mref: alış anındaki piyasa seviyesi (paçal)
 export interface Shelf { pid: string; price: number }
-export interface Shop { type: string; val: number; size: number; shelves: (Shelf | null)[]; stock: Record<string, Stock>; acc: Record<string, number> }
+export interface Shop { type: string; city: string; val: number; size: number; shelves: (Shelf | null)[]; stock: Record<string, Stock>; acc: Record<string, number> }
 export interface Listing { id: number; pid: string; seller: string; city: string; km: number; q: number; qty: number; price: number; kelepir?: boolean; sys?: boolean }
 export interface Offer { id: number; si: number; pid: string; qty: number; price: number; q: number; cost: number; acc: number; mref?: number }
 export interface FeedItem { t: string; v: number; si: number; nw?: number }
@@ -44,15 +44,18 @@ const pick = <X,>(a: X[]): X => a[Math.floor(rnd() * a.length)];
 export let S: State = null as unknown as State;
 let lid = 1;
 export const snapshot = () => ({ S, lid });
-export function restore(j: { S: State; lid: number }) { S = j.S; lid = j.lid; if (!S.offers) S.offers = []; }
+export function restore(j: { S: State; lid: number }) { S = j.S; lid = j.lid; if (!S.offers) S.offers = []; S.shops.forEach((s) => { if (!s.city) s.city = "istanbul"; }); }
 
 let onEv: (k: Ev, d?: any) => void = () => {};
 export function setOnEv(f: (k: Ev, d?: any) => void) { onEv = f; }
 const ev = (k: Ev, d?: any) => onEv(k, d);
 
 function fitShelves(sh: Shop) { while (sh.shelves.length < CONFIG.sizes[sh.size].shelves) sh.shelves.push(null); }
-function mkShop(type: string): Shop {
-  const sh: Shop = { type, val: T[type].cost, size: 0, shelves: [], stock: {}, acc: {} };
+const CITY: Record<string, ShopCity> = {};
+SHOP_CITIES.forEach((c) => (CITY[c.id] = c));
+export const cityOf = (sh: Shop) => CITY[sh.city] || SHOP_CITIES[0];
+function mkShop(type: string, city = "istanbul"): Shop {
+  const sh: Shop = { type, city, val: T[type].cost, size: 0, shelves: [], stock: {}, acc: {} };
   T[type].products.forEach((a) => { sh.stock[a[0]] = { q: 0, qual: 0, cost: 0 }; sh.acc[a[0]] = 0; });
   fitShelves(sh);
   return sh;
@@ -78,12 +81,16 @@ function genListing(id: string): Listing {
   let d = qualDiscount(q) + rr(-0.04, 0.04);
   const kelepir = rnd() < 0.1;
   if (kelepir) d += rr(0.08, 0.14);
-  return { id: lid++, pid: id, seller: pick(SELLERS), city: c[0], km: c[1], q, qty: ri(10, 80) * 10, price: +(sysPrice(id) * (1 - d)).toFixed(2), kelepir };
+  return { id: lid++, pid: id, seller: pick(SELLERS), city: c.ad, km: distKm(c.ad, "İstanbul"), q, qty: ri(10, 80) * 10, price: +(sysPrice(id) * (1 - d)).toFixed(2), kelepir };
 }
-export const ship = (l: Listing) => +(l.km * CONFIG.shipPerKm).toFixed(2);
-export const net = (l: Listing) => +(l.price + ship(l)).toFixed(2);
-export const sysListing = (id: string): Listing => ({ id: 0, pid: id, seller: "Sistem Toptancısı", city: "İstanbul", km: 20, q: 50, qty: Infinity, price: +sysPrice(id).toFixed(2), sys: true });
-export function allListings(id: string): Listing[] { return S.listings[id].slice().sort((a, b) => net(a) - net(b)).concat([sysListing(id)]); }
+// Nakliye, ilanın şehrinden malı alan dükkânın iline olan mesafeye göre hesaplanır.
+// sh verilmezse o ürünü satan ilk dükkân (yoksa İstanbul) esas alınır.
+const shopFor = (l: Listing, sh?: Shop) => sh || shopOf(l.pid);
+export const kmTo = (l: Listing, sh?: Shop) => { const s = shopFor(l, sh); return distKm(l.city, s ? cityOf(s).ad : "İstanbul"); };
+export const ship = (l: Listing, sh?: Shop) => +(kmTo(l, sh) * CONFIG.shipPerKm).toFixed(2);
+export const net = (l: Listing, sh?: Shop) => +(l.price + ship(l, sh)).toFixed(2);
+export const sysListing = (id: string, sh?: Shop): Listing => ({ id: 0, pid: id, seller: "Sistem Toptancısı", city: sh ? cityOf(sh).ad : "İstanbul", km: 20, q: 50, qty: Infinity, price: +sysPrice(id).toFixed(2), sys: true });
+export function allListings(id: string, sh?: Shop): Listing[] { return S.listings[id].slice().sort((a, b) => net(a, sh) - net(b, sh)).concat([sysListing(id, sh)]); }
 
 // ---- Dükkân ----
 export const shopOf = (pid: string) => S.shops.find((s) => s.type === P[pid].type);
@@ -94,25 +101,23 @@ export const depotCap = (sh: Shop) => CONFIG.sizes[sh.size].depot;
 export const priceMult = (r: number) => clamp(1 + (1 - r) * 3, 0.6, 1.6);
 export const qualMult = (q: number) => (q >= 70 ? 1.4 : q >= 40 ? 0.9 + ((q - 40) / 30) * 0.2 : 0.8);
 /** Rafın dakikalık satış hızı: garantili taban hız x fiyat çarpanı x kalite çarpanı. */
-export function shelfRate(sh: Shop, sf: Shelf | null) { if (!sf) return 0; return P[sf.pid].rate * CONFIG.rateScale * priceMult(sf.price / refPrice(sf.pid)) * qualMult(sh.stock[sf.pid].qual); }
+export function shelfRate(sh: Shop, sf: Shelf | null) { if (!sf) return 0; return P[sf.pid].rate * CONFIG.rateScale * cityOf(sh).demand * priceMult(sf.price / refPrice(sf.pid)) * qualMult(sh.stock[sf.pid].qual); }
 export const shopProfit = (sh: Shop) => sh.shelves.reduce((s, sf) => s + (sf && sh.stock[sf.pid].q > 0 ? shelfRate(sh, sf) * (sf.price - sh.stock[sf.pid].cost) : 0), 0);
 export const profitPerMin = () => S.shops.reduce((s, sh) => s + shopProfit(sh), 0);
-export const shopRent = (sh: Shop) => Math.round(CONFIG.sizes[sh.size].rent * T[sh.type].tier * CONFIG.rentScale);
+export const shopRent = (sh: Shop) => Math.round(CONFIG.sizes[sh.size].rent * T[sh.type].tier * cityOf(sh).rentK * CONFIG.rentScale);
 export const upCost = (sh: Shop) => (sh.size < 2 ? Math.round(T[sh.type].cost * CONFIG.sizes[sh.size + 1].costK) : null);
 export const xpNeed = (n: number) => CONFIG.xpBase * Math.pow(n - 1, CONFIG.xpPow);
 export const roundP = (x: number) => Math.round(x * 20) / 20;
 
-export function maxBuy(l: Listing) {
-  const sh = shopOf(l.pid);
-  if (!sh || S.level < P[l.pid].lvl) return 0;
-  return Math.max(0, Math.min(l.qty, Math.floor(S.cash / net(l)), depotCap(sh) - depotUsed(sh)));
+export function maxBuy(l: Listing, sh: Shop | undefined = shopOf(l.pid)) {
+  if (!sh || sh.type !== P[l.pid].type || S.level < P[l.pid].lvl) return 0;
+  return Math.max(0, Math.min(l.qty, Math.floor(S.cash / net(l, sh)), depotCap(sh) - depotUsed(sh)));
 }
 /** Malı alır: anında depoya girer, kalite ve maliyet ağırlıklı ortalamayla (paçal) birleşir. */
-export function buy(l: Listing, qty: number) {
-  const sh = shopOf(l.pid);
-  qty = Math.min(qty, maxBuy(l));
+export function buy(l: Listing, qty: number, sh: Shop | undefined = shopOf(l.pid)) {
+  qty = Math.min(qty, maxBuy(l, sh));
   if (!sh || qty <= 0) return 0;
-  const st = sh.stock[l.pid], cost = qty * net(l);
+  const st = sh.stock[l.pid], cost = qty * net(l, sh);
   const m = S.market.mult[l.pid];
   st.mref = ((st.mref || m) * st.q + m * qty) / (st.q + qty);
   st.qual = (st.qual * st.q + l.q * qty) / (st.q + qty);
@@ -128,7 +133,12 @@ export function buy(l: Listing, qty: number) {
   return qty;
 }
 export function upgrade(sh: Shop) { const c = upCost(sh); if (c == null || S.cash < c) return false; S.cash -= c; sh.val += c; sh.size++; fitShelves(sh); return true; }
-export function openShop(type: string) { const t = T[type]; if (S.level < t.level || S.cash < t.cost || S.shops.some((s) => s.type === type)) return false; S.cash -= t.cost; S.shops.push(mkShop(type)); return true; }
+/** Her ilde her türden bir dükkân açılabilir. */
+export function openShop(type: string, city = "istanbul") {
+  const t = T[type], c = CITY[city];
+  if (!t || !c || S.level < t.level || S.level < c.level || S.cash < t.cost || S.shops.some((s) => s.type === type && s.city === city)) return false;
+  S.cash -= t.cost; S.shops.push(mkShop(type, city)); return true;
+}
 
 /** Hemen satış fiyatı: maliyetin sellBackLoss kadar altı. */
 export function sellBackPrice(sh: Shop, pid: string) {
