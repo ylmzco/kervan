@@ -29,6 +29,15 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 - Rakamlar `src/data/` içinde durur; motora ya da arayüze sayı gömme.
 - Oyun kuralı `engine.ts` içinde, gösterim `ui.ts` içinde. Arayüz kural hesaplamaz.
 
+## Tasarım
+Kaynak: "Kervan — UI/UX Brief" belgesi (çarşı defteri ile borsa ekranı). Değerler `src/style.css` başındaki `:root` belirteçlerinde.
+- Yeşil ve kırmızı yalnızca para ve kalite içindir. Birincil eylem lacivert (`--accent`), dikkat isteyen iş safran.
+- Renk tek başına anlam taşımaz: kârda işaret (+ / −), yönde ok (▲ ▼), kalitede sayı hep yazılır.
+- Başlık Big Shoulders Display (büyük harf), gövde Archivo, çıplak sayılar IBM Plex Mono. Para birimi "₺", sayıdan sonra.
+- 4 px ızgara (4, 8, 12, 16, 24); kart köşesi 12, buton 8, rozet tam yuvarlak. Dokunma hedefi en az 44 px.
+- Pasif buton nedenini yazar. Buton fiille başlar, para içeren butonda tutar yazar.
+- Açık ve koyu tema birlikte tanımlıdır; yeni renk eklerken ikisini de doldur.
+
 ## Kapsam anayasası (bunlar eklenmez, sorulmadan geri getirilmez)
 - Rafa aktarma angaryası: tek satış deposu var, alınan mal anında satışta.
 - Yolda bekleme: teslimat anında, nakliye yalnızca mesafe bazlı masraf.
@@ -38,6 +47,8 @@ Yalnızca mobil, dikey ekran. Web ile geliştirilir, mağazaya Capacitor ile ç�
 - Satışı cezalandıran belirsiz talep formülü: taban hız garantili, fiyat ve kalite çarpandır.
 
 ## Bilinen borç
+- Fontlar Google Fonts'tan yükleniyor; Capacitor sürümünde dosya olarak pakete girmeli.
+- Brief'teki sayı biçimi (100 ₺ ve üstü kuruşsuz) ve kalite hapı eşikleri (80 / 65) henüz tam uygulanmadı; oyun kalite eşiği olarak 70 kullanıyor.
 - `src/ui.ts` prototipten olduğu gibi taşındı, `@ts-nocheck` ile tip denetimi dışında. Ekranlar yeniden tasarlanırken parçalara ayrılıp tiplenecek.
 - Borcunu hiç ödemeyen botlar başta hızlı, sonda yavaş; ölçülü borçlanan en iyisi. Hiçbiri iflas etmiyor: iflasın gerçek bir tehdit olup olmayacağı oynayarak karar verilecek.
 - "Zararına hemen sat" yalnızca rafta olan ürün için arayüzde var.
